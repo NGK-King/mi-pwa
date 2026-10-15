@@ -14,7 +14,8 @@
     body { font-family: Arial, sans-serif; max-width: 500px; margin: 20px auto; padding: 20px; }
     input, button { width: 100%; padding: 10px; margin: 5px 0; box-sizing: border-box; }
     button { background-color: #3f51b5; color: white; border: none; border-radius: 5px; cursor: pointer; }
-    .card { border: 1px solid #ccc; padding: 10px; border-radius: 5px; margin-top: 10px; }
+    .btn-delete { background-color: #e53935; margin-top: 8px; }
+    .card { border: 1px solid #ccc; padding: 12px; border-radius: 5px; margin-top: 10px; background-color: #f9f9f9; }
   </style>
 </head>
 <body>
@@ -50,21 +51,18 @@
         return;
       }
 
-      // Cifrar la contraseña usando AES con la clave maestra
       const encryptedPass = CryptoJS.AES.encrypt(pass, masterKey).toString();
-
-      // Obtener lista actual de localStorage
       let vault = JSON.parse(localStorage.getItem('myVault')) || [];
       
-      // Agregar nuevo registro
       vault.push({ site: site, pass: encryptedPass });
-      
-      // Guardar de nuevo en localStorage
       localStorage.setItem('myVault', JSON.stringify(vault));
 
       alert('¡Contraseña cifrada y guardada con éxito!');
       document.getElementById('site').value = '';
       document.getElementById('password').value = '';
+      
+      // Recargar la lista si ya estaba visible
+      loadPasswords();
     }
 
     // Leer y descifrar contraseñas
@@ -87,7 +85,6 @@
 
       vault.forEach((item, index) => {
         try {
-          // Intentar descifrar
           const bytes = CryptoJS.AES.decrypt(item.pass, masterKey);
           const decryptedPass = bytes.toString(CryptoJS.enc.Utf8);
 
@@ -99,13 +96,24 @@
           card.className = 'card';
           card.innerHTML = `
             <strong>${item.site}</strong><br>
-            Password: <code>${decryptedPass}</code>
+            Password: <code>${decryptedPass}</code><br>
+            <button class="btn-delete" onclick="deletePassword(${index})">🗑️ Borrar registro</button>
           `;
           listContainer.appendChild(card);
         } catch (e) {
           listContainer.innerHTML = '<p style="color:red;">Contraseña Maestra incorrecta o datos corruptos.</p>';
         }
       });
+    }
+
+    // Borrar contraseña por su índice
+    function deletePassword(index) {
+      if (confirm('¿Estás seguro de que quieres borrar esta contraseña?')) {
+        let vault = JSON.parse(localStorage.getItem('myVault')) || [];
+        vault.splice(index, 1); // Elimina el elemento en esa posición
+        localStorage.setItem('myVault', JSON.stringify(vault));
+        loadPasswords(); // Vuelve a cargar la lista actualizada
+      }
     }
   </script>
 
