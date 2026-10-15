@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi PWA</title>
+
+  <!-- Vinculación del Manifiesto y Color de Tema -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#3f51b5">
+</head>
+<body>
+
+  <h1>¡Mi Web es ahora una PWA!</h1>
+
+  <!-- Registro del Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(registration => {
+            console.log('Service Worker registrado correctamente:', registration.scope);
+          })
+          .catch(error => {
+            console.log('Error al registrar el Service Worker:', error);
+          });
+      });
+    }
+  </script>
+</body>
+</html>
