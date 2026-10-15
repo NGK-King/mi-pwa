@@ -15,7 +15,10 @@
     input, button { width: 100%; padding: 10px; margin: 5px 0; box-sizing: border-box; }
     button { background-color: #3f51b5; color: white; border: none; border-radius: 5px; cursor: pointer; }
     .btn-delete { background-color: #e53935; margin-top: 8px; }
+    .btn-backup { background-color: #2e7d32; margin-top: 5px; }
+    .btn-restore { background-color: #f57c00; margin-top: 5px; }
     .card { border: 1px solid #ccc; padding: 12px; border-radius: 5px; margin-top: 10px; background-color: #f9f9f9; }
+    .backup-section { background-color: #f0f4f8; padding: 15px; border-radius: 8px; margin-top: 20px; border: 1px dashed #3f51b5; }
   </style>
 </head>
 <body>
@@ -39,6 +42,16 @@
 
   <div id="passwordList"></div>
 
+  <!-- Sección de Copia de Seguridad -->
+  <div class="backup-section">
+    <h3>📦 Copia de Seguridad</h3>
+    <button class="btn-backup" onclick="exportBackup()">📥 Descargar Copia de Respaldo</button>
+    <br><br>
+    <label><strong>Restaurar desde archivo:</strong></label>
+    <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importBackup(event)">
+    <button class="btn-restore" onclick="document.getElementById('importFile').click()">📤 Importar Copia de Respaldo</button>
+  </div>
+
   <script>
     // Guardar contraseña cifrada
     function savePassword() {
@@ -61,7 +74,6 @@
       document.getElementById('site').value = '';
       document.getElementById('password').value = '';
       
-      // Recargar la lista si ya estaba visible
       loadPasswords();
     }
 
@@ -106,14 +118,59 @@
       });
     }
 
-    // Borrar contraseña por su índice
+    // Borrar contraseña
     function deletePassword(index) {
       if (confirm('¿Estás seguro de que quieres borrar esta contraseña?')) {
         let vault = JSON.parse(localStorage.getItem('myVault')) || [];
-        vault.splice(index, 1); // Elimina el elemento en esa posición
+        vault.splice(index, 1);
         localStorage.setItem('myVault', JSON.stringify(vault));
-        loadPasswords(); // Vuelve a cargar la lista actualizada
+        loadPasswords();
       }
+    }
+
+    // 📥 EXPORTAR COPIA DE SEGURIDAD
+    function exportBackup() {
+      let vault = localStorage.getItem('myVault');
+      
+      if (!vault || JSON.parse(vault).length === 0) {
+        alert('No hay contraseñas guardadas para exportar.');
+        return;
+      }
+
+      // Crear un archivo descargable JSON con los datos cifrados
+      const blob = new Blob([vault], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `backup_passwords_${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // 📤 IMPORTAR COPIA DE SEGURIDAD
+    function importBackup(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const importedVault = JSON.parse(e.target.result);
+          
+          if (!Array.isArray(importedVault)) {
+            throw new Error('Formato inválido');
+          }
+
+          if (confirm('¿Deseas restaurar esta copia de seguridad? Reemplazará o agregará los datos actuales.')) {
+            localStorage.setItem('myVault', JSON.stringify(importedVault));
+            alert('¡Copia de seguridad restaurada con éxito!');
+            loadPasswords();
+          }
+        } catch (err) {
+          alert('El archivo seleccionado no es válido o está corrupto.');
+        }
+      };
+      reader.readAsText(file);
     }
   </script>
 
