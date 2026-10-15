@@ -3,27 +3,117 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mi PWA</title>
-
-  <!-- Vinculación del Manifiesto y Color de Tema -->
+  <title>Mi Gestor de Password</title>
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#3f51b5">
+
+  <!-- Librería de Cifrado (CryptoJS) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 500px; margin: 20px auto; padding: 20px; }
+    input, button { width: 100%; padding: 10px; margin: 5px 0; box-sizing: border-box; }
+    button { background-color: #3f51b5; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    .card { border: 1px solid #ccc; padding: 10px; border-radius: 5px; margin-top: 10px; }
+  </style>
 </head>
 <body>
 
-  <h1>¡Mi Web es ahora una PWA!</h1>
+  <h2>🔐 Mi Gestor Seguro</h2>
 
-  <!-- Registro del Service Worker -->
+  <label><strong>1. Contraseña Maestra (para cifrar/descifrar):</strong></label>
+  <input type="password" id="masterKey" placeholder="Ingresa tu clave maestra">
+
+  <hr>
+
+  <h3>Guardar nueva clave</h3>
+  <input type="text" id="site" placeholder="Sitio web o servicio (ej. Gmail)">
+  <input type="password" id="password" placeholder="Contraseña a guardar">
+  <button onclick="savePassword()">Guardar Contraseña</button>
+
+  <hr>
+
+  <h3>Mis Contraseñas Guardadas</h3>
+  <button onclick="loadPasswords()">👁️ Mostrar / Descifrar Lista</button>
+
+  <div id="passwordList"></div>
+
+  <script>
+    // Guardar contraseña cifrada
+    function savePassword() {
+      const masterKey = document.getElementById('masterKey').value;
+      const site = document.getElementById('site').value;
+      const pass = document.getElementById('password').value;
+
+      if (!masterKey || !site || !pass) {
+        alert('Por favor completa todos los campos, incluyendo la Contraseña Maestra.');
+        return;
+      }
+
+      // Cifrar la contraseña usando AES con la clave maestra
+      const encryptedPass = CryptoJS.AES.encrypt(pass, masterKey).toString();
+
+      // Obtener lista actual de localStorage
+      let vault = JSON.parse(localStorage.getItem('myVault')) || [];
+      
+      // Agregar nuevo registro
+      vault.push({ site: site, pass: encryptedPass });
+      
+      // Guardar de nuevo en localStorage
+      localStorage.setItem('myVault', JSON.stringify(vault));
+
+      alert('¡Contraseña cifrada y guardada con éxito!');
+      document.getElementById('site').value = '';
+      document.getElementById('password').value = '';
+    }
+
+    // Leer y descifrar contraseñas
+    function loadPasswords() {
+      const masterKey = document.getElementById('masterKey').value;
+      const listContainer = document.getElementById('passwordList');
+      listContainer.innerHTML = '';
+
+      if (!masterKey) {
+        alert('Ingresa tu Contraseña Maestra para descifrar.');
+        return;
+      }
+
+      let vault = JSON.parse(localStorage.getItem('myVault')) || [];
+
+      if (vault.length === 0) {
+        listContainer.innerHTML = '<p>No hay contraseñas guardadas.</p>';
+        return;
+      }
+
+      vault.forEach((item, index) => {
+        try {
+          // Intentar descifrar
+          const bytes = CryptoJS.AES.decrypt(item.pass, masterKey);
+          const decryptedPass = bytes.toString(CryptoJS.enc.Utf8);
+
+          if (!decryptedPass) {
+            throw new Error('Clave incorrecta');
+          }
+
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = `
+            <strong>${item.site}</strong><br>
+            Password: <code>${decryptedPass}</code>
+          `;
+          listContainer.appendChild(card);
+        } catch (e) {
+          listContainer.innerHTML = '<p style="color:red;">Contraseña Maestra incorrecta o datos corruptos.</p>';
+        }
+      });
+    }
+  </script>
+
+  <!-- Registro del Service Worker para PWA -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then(registration => {
-            console.log('Service Worker registrado correctamente:', registration.scope);
-          })
-          .catch(error => {
-            console.log('Error al registrar el Service Worker:', error);
-          });
+        navigator.serviceWorker.register('/sw.js');
       });
     }
   </script>
