@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Mi primera PWA",
-  "short_name": "Mi PWA",
+  "name": "Gestor Seguro",
+  "short_name": "Gestor Seguro",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
