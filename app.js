@@ -147,10 +147,13 @@ async function conectarRobot() {
 function desconexionRobot() {
 
     robotCharacteristic = null;
+    robotDevice = null;
 
     actualizarConexion(false);
 
-    registrarActividad("Robot desconectado.");
+    registrarActividad(
+        "Robot desconectado. Listo para reconectar."
+    );
 
 }
 
