@@ -1,186 +1,276 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mi Gestor de Password</title>
-  <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#3f51b5">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Librería de Cifrado (CryptoJS) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <meta name="theme-color" content="#080d18">
+    <meta name="description" content="Controla tu mini robot ESP32 por Bluetooth">
 
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 500px; margin: 20px auto; padding: 20px; }
-    input, button { width: 100%; padding: 10px; margin: 5px 0; box-sizing: border-box; }
-    button { background-color: #3f51b5; color: white; border: none; border-radius: 5px; cursor: pointer; }
-    .btn-delete { background-color: #e53935; margin-top: 8px; }
-    .btn-backup { background-color: #2e7d32; margin-top: 5px; }
-    .btn-restore { background-color: #f57c00; margin-top: 5px; }
-    .card { border: 1px solid #ccc; padding: 12px; border-radius: 5px; margin-top: 10px; background-color: #f9f9f9; }
-    .backup-section { background-color: #f0f4f8; padding: 15px; border-radius: 8px; margin-top: 20px; border: 1px dashed #3f51b5; }
-  </style>
+    <title>MINI ROBOT CONTROL</title>
+
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
 </head>
+
 <body>
 
-  <h2>🔐 Mi Gestor Seguro</h2>
+<div class="app-container">
 
-  <label><strong>1. Contraseña Maestra (para cifrar/descifrar):</strong></label>
-  <input type="password" id="masterKey" placeholder="Ingresa tu clave maestra">
+    <header class="topbar">
+        <div class="brand">
+            <div class="brand-icon">🤖</div>
+            <div>
+                <h1>MINI ROBOT</h1>
+                <span>CONTROL CENTER <b>1.0</b></span>
+            </div>
+        </div>
 
-  <hr>
+        <div class="connection-indicator">
+            <span id="statusLight" class="status-light"></span>
+            <span id="statusText">DESCONECTADO</span>
+        </div>
+    </header>
 
-  <h3>Guardar nueva clave</h3>
-  <input type="text" id="site" placeholder="Sitio web o servicio (ej. Gmail)">
-  <input type="password" id="password" placeholder="Contraseña a guardar">
-  <button onclick="savePassword()">Guardar Contraseña</button>
+    <main>
 
-  <hr>
+        <section class="robot-panel">
 
-  <h3>Mis Contraseñas Guardadas</h3>
-  <button onclick="loadPasswords()">👁️ Mostrar / Descifrar Lista</button>
+            <div class="panel-label">
+                <span>ROBOT INTERFACE</span>
+                <span class="live-indicator">● LIVE</span>
+            </div>
 
-  <div id="passwordList"></div>
+            <div class="robot-face">
+                <div class="robot-glow"></div>
+                <div class="robot-eyes">
+                    <div class="eye"></div>
+                    <div class="eye"></div>
+                </div>
+                <div class="robot-mouth"></div>
+            </div>
 
-  <!-- Sección de Copia de Seguridad -->
-  <div class="backup-section">
-    <h3>📦 Copia de Seguridad</h3>
-    <button class="btn-backup" onclick="exportBackup()">📥 Descargar Copia de Respaldo</button>
-    <br><br>
-    <label><strong>Restaurar desde archivo:</strong></label>
-    <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importBackup(event)">
-    <button class="btn-restore" onclick="document.getElementById('importFile').click()">📤 Importar Copia de Respaldo</button>
-  </div>
+            <h2 id="robotMessage">HOLA, BROTHER</h2>
+            <p id="robotSubmessage">Tu compañero está esperando órdenes</p>
 
-  <script>
-    // Guardar contraseña cifrada
-    function savePassword() {
-      const masterKey = document.getElementById('masterKey').value;
-      const site = document.getElementById('site').value;
-      const pass = document.getElementById('password').value;
+            <div class="robot-info">
+                <div>
+                    <span>DISPOSITIVO</span>
+                    <strong>ESP32-C3</strong>
+                </div>
+                <div>
+                    <span>CONEXIÓN</span>
+                    <strong id="connectionType">BLE</strong>
+                </div>
+                <div>
+                    <span>ESTADO</span>
+                    <strong id="robotState">OFFLINE</strong>
+                </div>
+            </div>
 
-      if (!masterKey || !site || !pass) {
-        alert('Por favor completa todos los campos, incluyendo la Contraseña Maestra.');
-        return;
-      }
+        </section>
 
-      const encryptedPass = CryptoJS.AES.encrypt(pass, masterKey).toString();
-      let vault = JSON.parse(localStorage.getItem('myVault')) || [];
-      
-      vault.push({ site: site, pass: encryptedPass });
-      localStorage.setItem('myVault', JSON.stringify(vault));
+        <section class="connection-panel">
 
-      alert('¡Contraseña cifrada y guardada con éxito!');
-      document.getElementById('site').value = '';
-      document.getElementById('password').value = '';
-      
-      loadPasswords();
-    }
+            <div class="section-heading">
+                <h2>CONEXIÓN BLUETOOTH</h2>
+                <span class="section-number">01</span>
+            </div>
 
-    // Leer y descifrar contraseñas
-    function loadPasswords() {
-      const masterKey = document.getElementById('masterKey').value;
-      const listContainer = document.getElementById('passwordList');
-      listContainer.innerHTML = '';
+            <button id="connectButton" class="main-button">
+                <span>◉</span> CONECTAR ROBOT
+            </button>
 
-      if (!masterKey) {
-        alert('Ingresa tu Contraseña Maestra para descifrar.');
-        return;
-      }
+            <button id="disconnectButton" class="secondary-button" disabled>
+                DESCONECTAR
+            </button>
 
-      let vault = JSON.parse(localStorage.getItem('myVault')) || [];
+        </section>
 
-      if (vault.length === 0) {
-        listContainer.innerHTML = '<p>No hay contraseñas guardadas.</p>';
-        return;
-      }
+        <section class="control-panel">
 
-      vault.forEach((item, index) => {
-        try {
-          const bytes = CryptoJS.AES.decrypt(item.pass, masterKey);
-          const decryptedPass = bytes.toString(CryptoJS.enc.Utf8);
+            <div class="section-heading">
+                <h2>CONTROL DE EMOCIONES</h2>
+                <span class="section-number">02</span>
+            </div>
 
-          if (!decryptedPass) {
-            throw new Error('Clave incorrecta');
-          }
+            <div class="emotion-grid">
 
-          const card = document.createElement('div');
-          card.className = 'card';
-          card.innerHTML = `
-            <strong>${item.site}</strong><br>
-            Password: <code>${decryptedPass}</code><br>
-            <button class="btn-delete" onclick="deletePassword(${index})">🗑️ Borrar registro</button>
-          `;
-          listContainer.appendChild(card);
-        } catch (e) {
-          listContainer.innerHTML = '<p style="color:red;">Contraseña Maestra incorrecta o datos corruptos.</p>';
-        }
-      });
-    }
+                <button class="emotion-button" data-command="FELIZ">
+                    <span>😊</span>
+                    FELIZ
+                </button>
 
-    // Borrar contraseña
-    function deletePassword(index) {
-      if (confirm('¿Estás seguro de que quieres borrar esta contraseña?')) {
-        let vault = JSON.parse(localStorage.getItem('myVault')) || [];
-        vault.splice(index, 1);
-        localStorage.setItem('myVault', JSON.stringify(vault));
-        loadPasswords();
-      }
-    }
+                <button class="emotion-button" data-command="TRISTE">
+                    <span>😢</span>
+                    TRISTE
+                </button>
 
-    // 📥 EXPORTAR COPIA DE SEGURIDAD
-    function exportBackup() {
-      let vault = localStorage.getItem('myVault');
-      
-      if (!vault || JSON.parse(vault).length === 0) {
-        alert('No hay contraseñas guardadas para exportar.');
-        return;
-      }
+                <button class="emotion-button" data-command="SORPRESA">
+                    <span>😮</span>
+                    SORPRESA
+                </button>
 
-      // Crear un archivo descargable JSON con los datos cifrados
-      const blob = new Blob([vault], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `backup_passwords_${new Date().toISOString().slice(0,10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
+                <button class="emotion-button" data-command="ENOJADO">
+                    <span>😠</span>
+                    ENOJADO
+                </button>
 
-    // 📤 IMPORTAR COPIA DE SEGURIDAD
-    function importBackup(event) {
-      const file = event.target.files[0];
-      if (!file) return;
+                <button class="emotion-button" data-command="AMOR">
+                    <span>❤️</span>
+                    AMOR
+                </button>
 
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const importedVault = JSON.parse(e.target.result);
-          
-          if (!Array.isArray(importedVault)) {
-            throw new Error('Formato inválido');
-          }
+                <button class="emotion-button" data-command="SUENO">
+                    <span>😴</span>
+                    SUEÑO
+                </button>
 
-          if (confirm('¿Deseas restaurar esta copia de seguridad? Reemplazará o agregará los datos actuales.')) {
-            localStorage.setItem('myVault', JSON.stringify(importedVault));
-            alert('¡Copia de seguridad restaurada con éxito!');
-            loadPasswords();
-          }
-        } catch (err) {
-          alert('El archivo seleccionado no es válido o está corrupto.');
-        }
-      };
-      reader.readAsText(file);
-    }
-  </script>
+            </div>
 
-  <!-- Registro del Service Worker para PWA -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js');
-      });
-    }
-  </script>
+        </section>
+
+        <section class="control-panel">
+
+            <div class="section-heading">
+                <h2>ACCIONES DEL ROBOT</h2>
+                <span class="section-number">03</span>
+            </div>
+
+            <div class="action-grid">
+
+                <button class="action-button" data-command="HOLA">
+                    👋 HOLA
+                </button>
+
+                <button class="action-button" data-command="JAJA">
+                    😂 JAJA
+                </button>
+
+                <button class="action-button" data-command="TEQUIERO">
+                    💙 TE QUIERO
+                </button>
+
+                <button class="action-button" data-command="GRACIAS">
+                    🙏 GRACIAS
+                </button>
+
+                <button class="action-button" data-command="UPS">
+                    😯 UPS
+                </button>
+
+                <button class="action-button" data-command="PERDON">
+                    🥺 PERDÓN
+                </button>
+
+                <button class="action-button" data-command="GRRR">
+                    😤 GRRR
+                </button>
+
+                <button class="action-button" data-command="DESCANSAR">
+                    🌙 DESCANSAR
+                </button>
+
+            </div>
+
+        </section>
+
+        <section class="message-panel">
+
+            <div class="section-heading">
+                <h2>ENVIAR MENSAJE</h2>
+                <span class="section-number">04</span>
+            </div>
+
+            <div class="message-input">
+                <input
+                    type="text"
+                    id="messageInput"
+                    placeholder="Escribe una orden..."
+                    maxlength="40"
+                    autocomplete="off"
+                >
+
+                <button id="sendMessageButton">➤</button>
+            </div>
+
+            <p class="hint">
+                Escribe una orden reconocida por el robot.
+            </p>
+
+        </section>
+
+        <section class="memory-panel">
+
+            <div class="section-heading">
+                <h2>MEMORIA DEL ROBOT</h2>
+                <span class="section-number">05</span>
+            </div>
+
+            <div class="memory-grid">
+
+                <button class="memory-button" data-command="MEMORIA">
+                    🧠 CONSULTAR MEMORIA
+                </button>
+
+                <button class="memory-button danger" id="clearMemoryButton">
+                    🗑 BORRAR MEMORIA
+                </button>
+
+            </div>
+
+        </section>
+
+        <section class="system-panel">
+
+            <div class="section-heading">
+                <h2>SISTEMA</h2>
+                <span class="section-number">06</span>
+            </div>
+
+            <div class="system-grid">
+
+                <button class="system-button" data-command="INFO">
+                    🕒 INFORMACIÓN
+                </button>
+
+                <button class="system-button" data-command="ROBOT">
+                    🤖 ACTIVAR CARA
+                </button>
+
+                <button class="system-button" data-command="DORMIR">
+                    🌑 APAGAR PANTALLA
+                </button>
+
+                <button class="system-button" data-command="DESPERTAR">
+                    ☀️ DESPERTAR
+                </button>
+
+            </div>
+
+        </section>
+
+        <section class="log-panel">
+            <div class="section-heading">
+                <h2>REGISTRO DE ACTIVIDAD</h2>
+            </div>
+
+            <div id="activityLog" class="activity-log">
+                <p>Sistema iniciado. Esperando conexión...</p>
+            </div>
+        </section>
+
+    </main>
+
+    <footer>
+        <p>MINI ROBOT CONTROL SYSTEM</p>
+        <span>POWERED BY ESP32-C3</span>
+    </footer>
+
+</div>
+
+<script src="app.js"></script>
+
 </body>
 </html>

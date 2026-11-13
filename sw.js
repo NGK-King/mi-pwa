@@ -1,43 +1,69 @@
-const CACHE_NAME = 'pwa-cache-v1';
-const urlsToCache = [
-  '/',
-  '/index.html',
-  '/manifest.json'
+
+const CACHE_NAME = "mini-robot-control-v1";
+
+const ARCHIVOS = [
+    "./",
+    "./index.html",
+    "./style.css",
+    "./app.js",
+    "./manifest.json",
+    "./icon.svg"
 ];
 
-// Instalación del Service Worker
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('Archivos en caché con éxito');
-        return cache.addAll(urlsToCache);
-      })
-  );
-});
+self.addEventListener("install", event => {
 
-// Activación del Service Worker
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cache => {
-          if (cache !== CACHE_NAME) {
-            console.log('Borrando caché antiguo:', cache);
-            return caches.delete(cache);
-          }
+    event.waitUntil(
+
+        caches.open(CACHE_NAME).then(cache => {
+
+            return cache.addAll(ARCHIVOS);
+
         })
-      );
-    })
-  );
+
+    );
+
+    self.skipWaiting();
+
 });
 
-// Interceptar peticiones y responder con el caché si existe
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        return response || fetch(event.request);
-      })
-  );
+
+self.addEventListener("activate", event => {
+
+    event.waitUntil(
+
+        caches.keys().then(keys => {
+
+            return Promise.all(
+
+                keys
+                    .filter(key => key !== CACHE_NAME)
+                    .map(key => caches.delete(key))
+
+            );
+
+        })
+
+    );
+
+    self.clients.claim();
+
+});
+
+
+self.addEventListener("fetch", event => {
+
+    if (event.request.method !== "GET") return;
+
+    event.respondWith(
+
+        caches.match(event.request).then(cached => {
+
+            if (cached) return cached;
+
+            return fetch(event.request);
+
+        })
+
+    );
+
 });
