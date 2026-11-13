@@ -7,7 +7,10 @@ const CHARACTERISTIC_UUID =
 let robotDevice = null;
 let robotCharacteristic = null;
 
+
+// =====================================
 // ELEMENTOS DE LA INTERFAZ
+// =====================================
 
 const connectButton = document.getElementById("connectButton");
 const disconnectButton = document.getElementById("disconnectButton");
@@ -25,7 +28,29 @@ const sendMessageButton = document.getElementById("sendMessageButton");
 const activityLog = document.getElementById("activityLog");
 
 
+// =====================================
+// VARIABLES DE BABAS
+// =====================================
+
+const ReconocimientoVoz =
+    window.SpeechRecognition ||
+    window.webkitSpeechRecognition;
+
+let reconocimiento = null;
+
+let escuchando = false;
+let robotHablando = false;
+let modoBabasActivo = false;
+
+let estadoBabas = "ESPERANDO_PALABRA";
+
+let temporizadorEscucha = null;
+let idVozActual = 0;
+
+
+// =====================================
 // REGISTRO DE ACTIVIDAD
+// =====================================
 
 function registrarActividad(mensaje) {
 
@@ -43,7 +68,9 @@ function registrarActividad(mensaje) {
 }
 
 
-// ACTUALIZAR ESTADO DE CONEXIÓN
+// =====================================
+// ACTUALIZAR CONEXIÓN
+// =====================================
 
 function actualizarConexion(conectado) {
 
@@ -75,7 +102,9 @@ function actualizarConexion(conectado) {
 }
 
 
+// =====================================
 // CONECTAR CON EL ESP32-C3
+// =====================================
 
 async function conectarRobot() {
 
@@ -127,6 +156,10 @@ async function conectarRobot() {
 
         await enviarComando("ROBOT");
 
+        // ACTIVAR BABAS AUTOMÁTICAMENTE
+
+        activarBabas();
+
     } catch (error) {
 
         console.error(error);
@@ -145,9 +178,13 @@ async function conectarRobot() {
 }
 
 
+// =====================================
 // DESCONECTAR
+// =====================================
 
 function desconexionRobot() {
+
+    desactivarBabas();
 
     robotCharacteristic = null;
     robotDevice = null;
@@ -160,7 +197,9 @@ function desconexionRobot() {
 }
 
 
+// =====================================
 // ENVIAR COMANDOS BLE
+// =====================================
 
 async function enviarComando(comando) {
 
@@ -196,7 +235,9 @@ async function enviarComando(comando) {
 }
 
 
-// ENVIAR ESTADOS DE ANIMACIÓN AL ESP32
+// =====================================
+// ENVIAR ESTADOS AL ESP32
+// =====================================
 
 async function enviarEstadoRobot(estado) {
 
@@ -217,7 +258,9 @@ async function enviarEstadoRobot(estado) {
 }
 
 
+// =====================================
 // ACTUALIZAR TEXTO VISUAL
+// =====================================
 
 function actualizarMensaje(comando) {
 
@@ -254,7 +297,9 @@ function actualizarMensaje(comando) {
 }
 
 
+// =====================================
 // EVENTOS DE LOS BOTONES
+// =====================================
 
 connectButton.addEventListener("click", conectarRobot);
 
@@ -278,7 +323,9 @@ document.querySelectorAll("[data-command]").forEach(boton => {
 });
 
 
-// MENSAJE PERSONALIZADO A LA IA
+// =====================================
+// MENSAJE PERSONALIZADO
+// =====================================
 
 async function enviarMensaje() {
 
@@ -301,7 +348,9 @@ messageInput.addEventListener("keydown", event => {
 });
 
 
-// BORRAR MEMORIA CON CONFIRMACIÓN
+// =====================================
+// BORRAR MEMORIA
+// =====================================
 
 document.getElementById("clearMemoryButton")
     .addEventListener("click", async () => {
@@ -318,7 +367,9 @@ document.getElementById("clearMemoryButton")
     });
 
 
+// =====================================
 // INSTALACIÓN PWA
+// =====================================
 
 let eventoInstalacion = null;
 
@@ -332,7 +383,9 @@ window.addEventListener("beforeinstallprompt", event => {
 });
 
 
-// REGISTRO DEL SERVICE WORKER
+// =====================================
+// SERVICE WORKER
+// =====================================
 
 if ("serviceWorker" in navigator) {
 
@@ -359,7 +412,7 @@ if ("serviceWorker" in navigator) {
 let vozRobot = null;
 
 
-// BUSCAR UNA VOZ EN ESPAÑOL
+// BUSCAR VOZ EN ESPAÑOL
 
 function cargarVozRobot() {
 
@@ -374,29 +427,34 @@ function cargarVozRobot() {
         null;
 }
 
-
-// CARGAR VOCES DISPONIBLES
-
 cargarVozRobot();
 
 if ("speechSynthesis" in window) {
+
     window.speechSynthesis.onvoiceschanged = cargarVozRobot;
 }
 
 
 // =====================================
-// HACER HABLAR AL ROBOT
+// HABLAR CON BABAS
 // =====================================
-
-let robotHablando = false;
 
 function hablarRobot(mensaje) {
 
     if (!("speechSynthesis" in window)) {
+
         console.log("Este navegador no admite voz.");
+
         finalizarVozBabas();
+
         return;
     }
+
+    // INVALIDAR EVENTOS DE UNA VOZ ANTERIOR
+
+    idVozActual++;
+
+    const idActual = idVozActual;
 
     window.speechSynthesis.cancel();
 
@@ -407,31 +465,53 @@ function hablarRobot(mensaje) {
     }
 
     voz.lang = vozRobot ? vozRobot.lang : "es-ES";
+
     voz.rate = 1;
     voz.pitch = 1.1;
     voz.volume = 1;
 
     robotHablando = true;
 
+
+    // COMIENZA A HABLAR
+
     voz.onstart = function() {
+
+        if (idActual !== idVozActual) return;
 
         enviarEstadoRobot("HABLANDO");
 
         robotMessage.textContent = "ESTOY HABLANDO";
-        robotSubmessage.textContent = "Babas está hablando contigo";
+
+        robotSubmessage.textContent =
+            "Babas está hablando contigo";
+
+        console.log("BABAS ESTÁ HABLANDO");
     };
+
+
+    // TERMINA DE HABLAR
 
     voz.onend = function() {
 
+        if (idActual !== idVozActual) return;
+
         robotHablando = false;
+
         finalizarVozBabas();
     };
 
+
+    // ERROR DE VOZ
+
     voz.onerror = function(event) {
+
+        if (idActual !== idVozActual) return;
 
         console.error("Error de voz:", event.error);
 
         robotHablando = false;
+
         finalizarVozBabas();
     };
 
@@ -439,12 +519,15 @@ function hablarRobot(mensaje) {
 }
 
 
-
 // =====================================
-// DETENER LA VOZ
+// DETENER VOZ
 // =====================================
 
 function detenerVozRobot() {
+
+    idVozActual++;
+
+    robotHablando = false;
 
     if ("speechSynthesis" in window) {
 
@@ -452,138 +535,6 @@ function detenerVozRobot() {
     }
 
     enviarEstadoRobot("IDLE");
-}
-
-
-// =====================================
-// SISTEMA DE ACTIVACION BABAS
-// =====================================
-
-let modoBabasActivo = false;
-
-let estadoBabas = "ESPERANDO_PALABRA";
-
-
-// INICIAR RECONOCIMIENTO AUTOMATICAMENTE
-
-function iniciarReconocimientoBabas() {
-
-    if (!modoBabasActivo) return;
-
-    if (!reconocimiento) return;
-
-    if (escuchando || robotHablando) return;
-
-    if (estadoBabas === "RESPONDIENDO") return;
-
-    try {
-
-        reconocimiento.start();
-
-    } catch(error) {
-
-        console.log("Reconocimiento ocupado:", error.message);
-    }
-}
-
-
-// FINALIZAR VOZ Y PREPARAR SIGUIENTE TURNO
-
-function finalizarVozBabas() {
-
-    if (modoBabasActivo) {
-
-        if (estadoBabas === "RESPONDIENDO") {
-
-            estadoBabas = "ESPERANDO_PALABRA";
-
-            enviarEstadoRobot("IDLE");
-
-            robotMessage.textContent = "ESTOY DISPONIBLE";
-
-            robotSubmessage.textContent =
-                "Di BABAS cuando quieras hablar conmigo";
-
-        } else if (estadoBabas === "ESPERANDO_PREGUNTA") {
-
-            enviarEstadoRobot("ESCUCHANDO");
-
-            robotMessage.textContent = "TE ESCUCHO";
-
-            robotSubmessage.textContent =
-                "Dime qué necesitas";
-
-        }
-
-        setTimeout(() => {
-
-            iniciarReconocimientoBabas();
-
-        }, 600);
-
-    } else {
-
-        enviarEstadoRobot("IDLE");
-    }
-}
-
-
-// ACTIVAR BABAS
-
-function activarBabas() {
-
-    if (!reconocimiento) {
-
-        alert("Tu navegador no admite reconocimiento de voz.");
-
-        return;
-    }
-
-    modoBabasActivo = true;
-
-    estadoBabas = "ESPERANDO_PALABRA";
-
-    robotMessage.textContent = "BABAS ACTIVADO";
-
-    robotSubmessage.textContent =
-        "Di BABAS para comenzar a conversar";
-
-    document.getElementById("estadoMicrofono").textContent =
-        "🎙️ Esperando la palabra BABAS...";
-
-    registrarActividad("Modo de activación BABAS iniciado.");
-
-    iniciarReconocimientoBabas();
-}
-
-
-// DESACTIVAR BABAS
-
-function desactivarBabas() {
-
-    modoBabasActivo = false;
-
-    estadoBabas = "ESPERANDO_PALABRA";
-
-    robotHablando = false;
-
-    if (reconocimiento && escuchando) {
-        reconocimiento.stop();
-    }
-
-    detenerVozRobot();
-
-    enviarEstadoRobot("IDLE");
-
-    robotMessage.textContent = "BABAS DESACTIVADO";
-
-    robotSubmessage.textContent =
-        "Activa el micrófono para volver a conversar";
-
-    document.getElementById("estadoMicrofono").textContent =
-        "Micrófono inactivo";
-
-    registrarActividad("Modo BABAS detenido.");
 }
 
 
@@ -610,22 +561,11 @@ document.addEventListener("DOMContentLoaded", function() {
 
 
 // =====================================
-// RECONOCIMIENTO DE VOZ
+// SISTEMA AUTOMÁTICO DE BABAS
 // =====================================
 
 
-// =====================================
-// RECONOCIMIENTO DE VOZ BABAS
-// =====================================
-
-const ReconocimientoVoz =
-    window.SpeechRecognition ||
-    window.webkitSpeechRecognition;
-
-let reconocimiento = null;
-
-let escuchando = false;
-
+// CREAR RECONOCIMIENTO DE VOZ
 
 if (ReconocimientoVoz) {
 
@@ -637,6 +577,156 @@ if (ReconocimientoVoz) {
 
     reconocimiento.interimResults = false;
 
+} else {
+
+    console.log("Reconocimiento de voz no compatible.");
+}
+
+
+// =====================================
+// ACTIVAR BABAS
+// =====================================
+
+function activarBabas() {
+
+    if (!reconocimiento) {
+
+        alert(
+            "Tu navegador no admite reconocimiento de voz."
+        );
+
+        return;
+    }
+
+    if (!robotCharacteristic) {
+
+        console.log("Conecta primero el mini robot.");
+
+        return;
+    }
+
+    if (modoBabasActivo) return;
+
+    modoBabasActivo = true;
+
+    estadoBabas = "ESPERANDO_PALABRA";
+
+    robotMessage.textContent = "BABAS ACTIVADO";
+
+    robotSubmessage.textContent =
+        "Di BABAS para comenzar a conversar";
+
+    document.getElementById("estadoMicrofono").textContent =
+        "🎙️ Esperando BABAS...";
+
+    registrarActividad(
+        "Babas activado. Escucha automática iniciada."
+    );
+
+    iniciarReconocimientoBabas();
+}
+
+
+// =====================================
+// INICIAR RECONOCIMIENTO
+// =====================================
+
+function iniciarReconocimientoBabas() {
+
+    if (!modoBabasActivo) return;
+
+    if (!reconocimiento) return;
+
+    if (!robotCharacteristic) return;
+
+    if (escuchando || robotHablando) return;
+
+    if (estadoBabas === "RESPONDIENDO") return;
+
+    clearTimeout(temporizadorEscucha);
+
+    try {
+
+        reconocimiento.start();
+
+    } catch (error) {
+
+        console.log(
+            "No se pudo iniciar el reconocimiento:",
+            error.message
+        );
+    }
+}
+
+
+// =====================================
+// PROGRAMAR SIGUIENTE ESCUCHA
+// =====================================
+
+function programarEscucha() {
+
+    clearTimeout(temporizadorEscucha);
+
+    if (!modoBabasActivo) return;
+
+    if (!robotCharacteristic) return;
+
+    if (escuchando || robotHablando) return;
+
+    if (estadoBabas === "RESPONDIENDO") return;
+
+    temporizadorEscucha = setTimeout(() => {
+
+        iniciarReconocimientoBabas();
+
+    }, 700);
+}
+
+
+// =====================================
+// FINALIZAR VOZ Y PREPARAR SIGUIENTE TURNO
+// =====================================
+
+function finalizarVozBabas() {
+
+    if (!modoBabasActivo) {
+
+        enviarEstadoRobot("IDLE");
+
+        return;
+    }
+
+    if (estadoBabas === "RESPONDIENDO") {
+
+        estadoBabas = "ESPERANDO_PALABRA";
+
+        enviarEstadoRobot("IDLE");
+
+        robotMessage.textContent = "ESTOY DISPONIBLE";
+
+        robotSubmessage.textContent =
+            "Di BABAS cuando quieras hablar conmigo";
+
+    } else if (estadoBabas === "ESPERANDO_PREGUNTA") {
+
+        enviarEstadoRobot("ESCUCHANDO");
+
+        robotMessage.textContent = "TE ESCUCHO";
+
+        robotSubmessage.textContent =
+            "Dime qué necesitas";
+    }
+
+    programarEscucha();
+}
+
+
+// =====================================
+// EVENTOS DEL RECONOCIMIENTO
+// =====================================
+
+if (reconocimiento) {
+
 
     // CUANDO COMIENZA A ESCUCHAR
 
@@ -644,17 +734,23 @@ if (ReconocimientoVoz) {
 
         escuchando = true;
 
-        console.log("Babas está escuchando...");
+        document.getElementById("estadoMicrofono").textContent =
+            estadoBabas === "ESPERANDO_PALABRA"
+                ? "🎙️ Esperando BABAS..."
+                : "🎙️ Te estoy escuchando...";
 
+        console.log("Babas está escuchando.");
     };
 
 
-    // CUANDO RECONOCE UNA FRASE
+    // CUANDO RECONOCE TU VOZ
 
     reconocimiento.onresult = function(event) {
 
-        const mensaje =
-            event.results[0][0].transcript.trim();
+        const resultado =
+            event.results[event.results.length - 1];
+
+        const mensaje = resultado[0].transcript.trim();
 
         console.log("Voz reconocida:", mensaje);
 
@@ -667,46 +763,53 @@ if (ReconocimientoVoz) {
         if (estadoBabas === "ESPERANDO_PALABRA") {
 
             const coincidencia =
-                mensaje.match(/babas[\s,.:;!?¿¡-]*(.*)$/i);
+                mensaje.match(/\bbabas\b[\s,.:;!?¿¡-]*(.*)$/i);
 
-            if (coincidencia) {
+            if (!coincidencia) {
 
-                const pregunta = coincidencia[1].trim();
+                console.log("Todavía no detecto BABAS.");
 
-                console.log("¡Babas activado!");
+                return;
+            }
 
-                if (pregunta.length > 0) {
+            const pregunta = coincidencia[1].trim();
 
-                    // DIJO BABAS Y SU PREGUNTA EN UNA SOLA FRASE
+            registrarActividad("¡Palabra BABAS detectada!");
 
-                    estadoBabas = "RESPONDIENDO";
 
-                    enviarEstadoRobot("PENSANDO");
+            // BABAS + PREGUNTA EN UNA SOLA FRASE
 
-                    procesarMensajeUsuario(pregunta);
+            if (pregunta.length > 0) {
 
-                } else {
+                estadoBabas = "RESPONDIENDO";
 
-                    // SOLO DIJO BABAS
+                enviarEstadoRobot("PENSANDO");
 
-                    estadoBabas = "ESPERANDO_PREGUNTA";
+                procesarMensajeUsuario(pregunta);
 
-                    enviarEstadoRobot("ESCUCHANDO");
+            } else {
 
-                    robotMessage.textContent = "¡AQUÍ ESTOY!";
+                // SOLAMENTE DIJO BABAS
 
-                    robotSubmessage.textContent =
-                        "Te escucho, brother";
+                estadoBabas = "ESPERANDO_PREGUNTA";
 
-                    hablarRobot("Aquí estoy, brother. Te escucho.");
-                }
+                enviarEstadoRobot("ESCUCHANDO");
+
+                robotMessage.textContent = "¡AQUÍ ESTOY!";
+
+                robotSubmessage.textContent =
+                    "Te escucho, brother";
+
+                hablarRobot(
+                    "Aquí estoy, brother. Te escucho."
+                );
             }
 
             return;
         }
 
 
-        // RECIBIR LA PREGUNTA DESPUÉS DE BABAS
+        // RECIBIR PREGUNTA DESPUÉS DE BABAS
 
         if (estadoBabas === "ESPERANDO_PREGUNTA") {
 
@@ -719,16 +822,20 @@ if (ReconocimientoVoz) {
     };
 
 
-    // ERRORES
+    // ERRORES DE RECONOCIMIENTO
 
     reconocimiento.onerror = function(event) {
 
         escuchando = false;
 
-        console.error("Error de micrófono:", event.error);
+        console.error(
+            "Error de reconocimiento:",
+            event.error
+        );
 
         document.getElementById("estadoMicrofono").textContent =
             "Micrófono: " + event.error;
+
 
         if (
             event.error === "not-allowed" ||
@@ -740,135 +847,65 @@ if (ReconocimientoVoz) {
             robotMessage.textContent = "MICRÓFONO BLOQUEADO";
 
             robotSubmessage.textContent =
-                "Revisa los permisos del navegador";
+                "Permite el acceso al micrófono";
+
+            registrarActividad("Permiso de micrófono denegado.");
+
+            return;
+        }
+
+
+        if (event.error === "audio-capture") {
+
+            modoBabasActivo = false;
+
+            robotMessage.textContent = "ERROR DE MICRÓFONO";
+
+            robotSubmessage.textContent =
+                "No se pudo acceder al micrófono";
+
+            return;
         }
     };
 
 
-    // CUANDO TERMINA UNA CAPTURA
+    // CUANDO TERMINA UNA CAPTURA DE VOZ
 
     reconocimiento.onend = function() {
 
         escuchando = false;
 
-        console.log("Finalizó la captura de voz.");
+        console.log("Captura de voz finalizada.");
 
-        if (
-            modoBabasActivo &&
-            !robotHablando &&
-            estadoBabas !== "RESPONDIENDO"
-        ) {
-
-            setTimeout(() => {
-
-                iniciarReconocimientoBabas();
-
-            }, 600);
-        }
+        programarEscucha();
     };
-
-} else {
-
-    console.log("Reconocimiento de voz no compatible.");
 }
 
 
 // =====================================
-// BOTONES DE ACTIVACION
+// DETENER BABAS AL DESCONECTAR
 // =====================================
 
-document.addEventListener("DOMContentLoaded", function() {
+function desactivarBabas() {
 
-    const botonIniciar =
-        document.getElementById("iniciarEscucha");
+    modoBabasActivo = false;
 
-    const botonDetener =
-        document.getElementById("detenerEscucha");
+    estadoBabas = "ESPERANDO_PALABRA";
 
+    clearTimeout(temporizadorEscucha);
 
-    if (botonIniciar) {
+    detenerVozRobot();
 
-        botonIniciar.addEventListener("click", function() {
+    if (reconocimiento && escuchando) {
 
-            activarBabas();
-
-        });
+        reconocimiento.stop();
     }
 
+    document.getElementById("estadoMicrofono").textContent =
+        "Micrófono inactivo";
 
-    if (botonDetener) {
-
-        botonDetener.addEventListener("click", function() {
-
-            desactivarBabas();
-
-        });
-    }
-
-});
-
-
-
-// =====================================
-// INICIAR Y DETENER MICRÓFONO
-// =====================================
-
-document.addEventListener("DOMContentLoaded", function() {
-
-    const botonIniciar =
-        document.getElementById("iniciarEscucha");
-
-    const botonDetener =
-        document.getElementById("detenerEscucha");
-
-
-    // INICIAR ESCUCHA
-
-    if (botonIniciar) {
-
-        botonIniciar.addEventListener("click", function() {
-
-            if (!reconocimiento) {
-
-                hablarRobot(
-                    "Lo siento, tu navegador no admite reconocimiento de voz."
-                );
-
-                return;
-            }
-
-            if (!escuchando) {
-
-                detenerVozRobot();
-
-                try {
-
-                    reconocimiento.start();
-
-                } catch(error) {
-
-                    console.log(error);
-                }
-            }
-        });
-    }
-
-
-    // DETENER ESCUCHA
-
-    if (botonDetener) {
-
-        botonDetener.addEventListener("click", function() {
-
-            if (reconocimiento && escuchando) {
-
-                reconocimiento.stop();
-
-                enviarEstadoRobot("IDLE");
-            }
-        });
-    }
-});
+    registrarActividad("Modo BABAS detenido.");
+}
 
 
 // =====================================
@@ -901,7 +938,9 @@ async function consultarMiniRobot(mensaje) {
 
     if (!datos.respuesta) {
 
-        throw new Error("La IA no devolvió una respuesta.");
+        throw new Error(
+            "La IA no devolvió una respuesta."
+        );
     }
 
     return datos.respuesta;
@@ -920,6 +959,11 @@ async function procesarMensajeUsuario(mensaje) {
     const texto = mensaje.trim();
 
     if (!texto) return;
+
+    if (modoBabasActivo) {
+
+        estadoBabas = "RESPONDIENDO";
+    }
 
 
     // EL ROBOT COMIENZA A PENSAR
@@ -960,8 +1004,7 @@ async function procesarMensajeUsuario(mensaje) {
         );
 
 
-        // EL ROBOT PRONUNCIA LA RESPUESTA
-        // HABLARÁ Y MOVERÁ LA BOCA EN LA OLED
+        // PRONUNCIAR RESPUESTA
 
         hablarRobot(respuesta);
 
@@ -984,7 +1027,7 @@ async function procesarMensajeUsuario(mensaje) {
         );
 
 
-        // EL ROBOT TAMBIÉN COMUNICARÁ EL ERROR
+        // COMUNICAR ERROR
 
         hablarRobot(
             "Brother, tuve un problema al conectarme. " +
