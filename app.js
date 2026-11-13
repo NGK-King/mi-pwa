@@ -59,11 +59,16 @@ function actualizarConexion(conectado) {
     disconnectButton.disabled = !conectado;
 
     if (conectado) {
+
         robotMessage.textContent = "ROBOT CONECTADO";
+
         robotSubmessage.textContent =
             "Comunicación Bluetooth establecida";
+
     } else {
+
         robotMessage.textContent = "HOLA, BROTHER";
+
         robotSubmessage.textContent =
             "Tu compañero está esperando órdenes";
     }
@@ -136,9 +141,7 @@ async function conectarRobot() {
         if (robotDevice && robotDevice.gatt.connected) {
             robotDevice.gatt.disconnect();
         }
-
     }
-
 }
 
 
@@ -154,7 +157,6 @@ function desconexionRobot() {
     registrarActividad(
         "Robot desconectado. Listo para reconectar."
     );
-
 }
 
 
@@ -190,9 +192,28 @@ async function enviarComando(comando) {
         registrarActividad("Error al enviar: " + error.message);
 
         alert("No se pudo enviar el comando.");
-
     }
+}
 
+
+// ENVIAR ESTADOS DE ANIMACIÓN AL ESP32
+
+async function enviarEstadoRobot(estado) {
+
+    if (!robotCharacteristic) return;
+
+    try {
+
+        const datos = new TextEncoder().encode(estado);
+
+        await robotCharacteristic.writeValue(datos);
+
+        console.log("Estado del robot:", estado);
+
+    } catch (error) {
+
+        console.error("Error enviando estado:", error);
+    }
 }
 
 
@@ -229,9 +250,7 @@ function actualizarMensaje(comando) {
         robotMessage.textContent = mensajes[comando][0];
 
         robotSubmessage.textContent = mensajes[comando][1];
-
     }
-
 }
 
 
@@ -239,15 +258,12 @@ function actualizarMensaje(comando) {
 
 connectButton.addEventListener("click", conectarRobot);
 
-
 disconnectButton.addEventListener("click", () => {
 
     if (robotDevice && robotDevice.gatt.connected) {
 
         robotDevice.gatt.disconnect();
-
     }
-
 });
 
 
@@ -258,16 +274,11 @@ document.querySelectorAll("[data-command]").forEach(boton => {
     boton.addEventListener("click", () => {
 
         enviarComando(boton.dataset.command);
-
     });
-
 });
 
 
-
-// =====================================
-// ENVIAR MENSAJE PERSONALIZADO A LA IA
-// =====================================
+// MENSAJE PERSONALIZADO A LA IA
 
 async function enviarMensaje() {
 
@@ -287,9 +298,7 @@ messageInput.addEventListener("keydown", event => {
     if (event.key === "Enter") {
         enviarMensaje();
     }
-
 });
-
 
 
 // BORRAR MEMORIA CON CONFIRMACIÓN
@@ -305,9 +314,7 @@ document.getElementById("clearMemoryButton")
         if (confirmar) {
 
             await enviarComando("BORRAR");
-
         }
-
     });
 
 
@@ -322,7 +329,6 @@ window.addEventListener("beforeinstallprompt", event => {
     eventoInstalacion = event;
 
     registrarActividad("Aplicación disponible para instalar.");
-
 });
 
 
@@ -341,11 +347,8 @@ if ("serviceWorker" in navigator) {
         } catch (error) {
 
             console.error("Error PWA:", error);
-
         }
-
     });
-
 }
 
 
@@ -355,8 +358,12 @@ if ("serviceWorker" in navigator) {
 
 let vozRobot = null;
 
-// Buscar una voz en español
+
+// BUSCAR UNA VOZ EN ESPAÑOL
+
 function cargarVozRobot() {
+
+    if (!("speechSynthesis" in window)) return;
 
     const voces = window.speechSynthesis.getVoices();
 
@@ -367,10 +374,15 @@ function cargarVozRobot() {
         null;
 }
 
-// Cargar voces disponibles
+
+// CARGAR VOCES DISPONIBLES
+
 cargarVozRobot();
 
-window.speechSynthesis.onvoiceschanged = cargarVozRobot;
+if ("speechSynthesis" in window) {
+    window.speechSynthesis.onvoiceschanged = cargarVozRobot;
+}
+
 
 // =====================================
 // HACER HABLAR AL ROBOT
@@ -379,11 +391,16 @@ window.speechSynthesis.onvoiceschanged = cargarVozRobot;
 function hablarRobot(mensaje) {
 
     if (!("speechSynthesis" in window)) {
+
         console.log("Este navegador no admite voz.");
+
+        enviarEstadoRobot("IDLE");
+
         return;
     }
 
     // Detener cualquier mensaje anterior
+
     window.speechSynthesis.cancel();
 
     const voz = new SpeechSynthesisUtterance(mensaje);
@@ -394,13 +411,54 @@ function hablarRobot(mensaje) {
 
     voz.lang = vozRobot ? vozRobot.lang : "es-ES";
 
-    // Configuración de la voz
     voz.rate = 1;
     voz.pitch = 1.1;
     voz.volume = 1;
 
+
+    // CUANDO COMIENZA A HABLAR
+
+    voz.onstart = function() {
+
+        enviarEstadoRobot("HABLANDO");
+
+        robotMessage.textContent = "ESTOY HABLANDO";
+
+        robotSubmessage.textContent =
+            "Escucha lo que tengo que contarte";
+
+        console.log("MINI ROBOT ESTA HABLANDO");
+    };
+
+
+    // CUANDO TERMINA DE HABLAR
+
+    voz.onend = function() {
+
+        enviarEstadoRobot("IDLE");
+
+        robotMessage.textContent = "ROBOT ACTIVO";
+
+        robotSubmessage.textContent =
+            "Estoy esperando tu siguiente pregunta";
+
+        console.log("MINI ROBOT TERMINO DE HABLAR");
+    };
+
+
+    // SI OCURRE UN ERROR DE VOZ
+
+    voz.onerror = function(event) {
+
+        enviarEstadoRobot("IDLE");
+
+        console.error("Error de voz:", event.error);
+    };
+
+
     window.speechSynthesis.speak(voz);
 }
+
 
 // =====================================
 // DETENER LA VOZ
@@ -408,8 +466,14 @@ function hablarRobot(mensaje) {
 
 function detenerVozRobot() {
 
-    window.speechSynthesis.cancel();
+    if ("speechSynthesis" in window) {
+
+        window.speechSynthesis.cancel();
+    }
+
+    enviarEstadoRobot("IDLE");
 }
+
 
 // =====================================
 // PRUEBA DE VOZ
@@ -428,18 +492,14 @@ document.addEventListener("DOMContentLoaded", function() {
                 "Ahora puedo hablar contigo desde tu celular. " +
                 "¡Vamos a convertirnos en grandes amigos!"
             );
-
         });
-
     }
-
 });
 
 
-
- // =====================================
- // RECONOCIMIENTO DE VOZ
- // =====================================
+// =====================================
+// RECONOCIMIENTO DE VOZ
+// =====================================
 
 const ReconocimientoVoz =
     window.SpeechRecognition ||
@@ -449,21 +509,37 @@ let reconocimiento = null;
 
 let escuchando = false;
 
+
 if (ReconocimientoVoz) {
 
     reconocimiento = new ReconocimientoVoz();
 
     reconocimiento.lang = "es-PE";
+
     reconocimiento.continuous = false;
+
     reconocimiento.interimResults = false;
+
+
+    // CUANDO EL USUARIO COMIENZA A HABLAR
 
     reconocimiento.onstart = function() {
 
         escuchando = true;
 
+        enviarEstadoRobot("ESCUCHANDO");
+
+        robotMessage.textContent = "TE ESTOY ESCUCHANDO";
+
+        robotSubmessage.textContent =
+            "Estoy atento a lo que me dices";
+
         document.getElementById("estadoMicrofono").textContent =
             "🎙️ TE ESTOY ESCUCHANDO...";
     };
+
+
+    // CUANDO RECONOCE EL MENSAJE
 
     reconocimiento.onresult = function(event) {
 
@@ -472,16 +548,28 @@ if (ReconocimientoVoz) {
         document.getElementById("textoEscuchado").textContent =
             "Tú: " + mensaje;
 
+        enviarEstadoRobot("PENSANDO");
+
         procesarMensajeUsuario(mensaje);
     };
+
+
+    // SI OCURRE UN ERROR DEL MICRÓFONO
 
     reconocimiento.onerror = function(event) {
 
         escuchando = false;
 
+        enviarEstadoRobot("IDLE");
+
         document.getElementById("estadoMicrofono").textContent =
             "Error del micrófono: " + event.error;
+
+        console.error("Error de reconocimiento:", event.error);
     };
+
+
+    // CUANDO TERMINA LA ESCUCHA
 
     reconocimiento.onend = function() {
 
@@ -498,7 +586,7 @@ if (ReconocimientoVoz) {
 
 
 // =====================================
-// INICIAR Y DETENER MICROFONO
+// INICIAR Y DETENER MICRÓFONO
 // =====================================
 
 document.addEventListener("DOMContentLoaded", function() {
@@ -508,6 +596,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
     const botonDetener =
         document.getElementById("detenerEscucha");
+
+
+    // INICIAR ESCUCHA
 
     if (botonIniciar) {
 
@@ -527,31 +618,38 @@ document.addEventListener("DOMContentLoaded", function() {
                 detenerVozRobot();
 
                 try {
+
                     reconocimiento.start();
+
                 } catch(error) {
+
                     console.log(error);
                 }
             }
         });
     }
 
+
+    // DETENER ESCUCHA
+
     if (botonDetener) {
 
         botonDetener.addEventListener("click", function() {
 
             if (reconocimiento && escuchando) {
+
                 reconocimiento.stop();
+
+                enviarEstadoRobot("IDLE");
             }
         });
     }
-
 });
 
 
-
- // =====================================
- // INTELIGENCIA ARTIFICIAL OPENROUTER
- // =====================================
+// =====================================
+// INTELIGENCIA ARTIFICIAL OPENROUTER
+// =====================================
 
 async function consultarMiniRobot(mensaje) {
 
@@ -566,7 +664,6 @@ async function consultarMiniRobot(mensaje) {
         body: JSON.stringify({
             mensaje: mensaje
         })
-
     });
 
     const datos = await respuesta.json();
@@ -576,13 +673,11 @@ async function consultarMiniRobot(mensaje) {
         throw new Error(
             datos.error || "No se pudo conectar con la IA"
         );
-
     }
 
     if (!datos.respuesta) {
 
         throw new Error("La IA no devolvió una respuesta.");
-
     }
 
     return datos.respuesta;
@@ -602,10 +697,16 @@ async function procesarMensajeUsuario(mensaje) {
 
     if (!texto) return;
 
+
+    // EL ROBOT COMIENZA A PENSAR
+
+    enviarEstadoRobot("PENSANDO");
+
     respuestaElemento.textContent =
         "MINI ROBOT: Estoy pensando... 🤔";
 
     robotMessage.textContent = "PROCESANDO";
+
     robotSubmessage.textContent =
         "Estoy consultando mi inteligencia artificial";
 
@@ -613,15 +714,20 @@ async function procesarMensajeUsuario(mensaje) {
         "Pregunta enviada a OpenRouter: " + texto
     );
 
+
     try {
 
         const respuesta =
             await consultarMiniRobot(texto);
 
+
+        // MOSTRAR RESPUESTA
+
         respuestaElemento.textContent =
             "MINI ROBOT: " + respuesta;
 
         robotMessage.textContent = "NUEVA RESPUESTA";
+
         robotSubmessage.textContent =
             "Tengo algo que contarte";
 
@@ -629,8 +735,12 @@ async function procesarMensajeUsuario(mensaje) {
             "Respuesta recibida correctamente."
         );
 
-        // El robot pronuncia la respuesta
+
+        // EL ROBOT PRONUNCIA LA RESPUESTA
+        // HABLARÁ Y MOVERÁ LA BOCA EN LA OLED
+
         hablarRobot(respuesta);
+
 
     } catch (error) {
 
@@ -641,6 +751,7 @@ async function procesarMensajeUsuario(mensaje) {
             "Inténtalo nuevamente.";
 
         robotMessage.textContent = "ERROR DE CONEXIÓN";
+
         robotSubmessage.textContent =
             "No pude consultar mi inteligencia artificial";
 
@@ -648,19 +759,20 @@ async function procesarMensajeUsuario(mensaje) {
             "Error de IA: " + error.message
         );
 
+
+        // EL ROBOT TAMBIÉN COMUNICARÁ EL ERROR
+
         hablarRobot(
             "Brother, tuve un problema al conectarme. " +
             "Por favor, inténtalo nuevamente."
         );
-
     }
-
 }
 
 
-
-
-// INICIO
+// =====================================
+// INICIO DEL SISTEMA
+// =====================================
 
 actualizarConexion(false);
 
