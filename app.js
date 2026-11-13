@@ -1104,7 +1104,10 @@ if (botonDetenerEscucha) {
 // OPENROUTER
 // =====================================
 
-async function consultarMiniRobot(mensaje) {
+
+async function consultarMiniRobot(mensaje, alRecibirTexto) {
+
+    const inicio = performance.now();
 
     const respuesta = await fetch("/api/chat", {
 
@@ -1119,29 +1122,116 @@ async function consultarMiniRobot(mensaje) {
         })
     });
 
-    const datos = await respuesta.json();
-
     if (!respuesta.ok) {
 
+        let error = {};
+
+        try {
+            error = await respuesta.json();
+        } catch {}
+
         throw new Error(
-            datos.error || "No se pudo conectar con la IA"
+            error.error || "No se pudo conectar con la IA"
         );
     }
 
-    if (!datos.respuesta) {
-
-        throw new Error(
-            "La IA no devolvió una respuesta."
-        );
+    if (!respuesta.body) {
+        throw new Error("El navegador no admite Streaming.");
     }
 
-    return datos.respuesta;
+    const reader = respuesta.body.getReader();
+
+    const decoder = new TextDecoder();
+
+    let buffer = "";
+    let respuestaCompleta = "";
+    let primeraRespuesta = false;
+
+    while (true) {
+
+        const { done, value } = await reader.read();
+
+        if (done) break;
+
+        buffer += decoder.decode(value, {
+            stream: true
+        });
+
+        const eventos = buffer.split(/\r?\n\r?\n/);
+
+        buffer = eventos.pop() || "";
+
+        for (const evento of eventos) {
+
+            const lineas = evento.split(/\r?\n/);
+
+            for (const linea of lineas) {
+
+                if (!linea.startsWith("data:")) continue;
+
+                const contenido = linea.slice(5).trim();
+
+                if (!contenido || contenido === "[DONE]") {
+                    continue;
+                }
+
+                try {
+
+                    const datos = JSON.parse(contenido);
+
+                    const fragmento =
+                        datos.choices?.[0]?.delta?.content;
+
+                    if (typeof fragmento === "string" && fragmento) {
+
+                        if (!primeraRespuesta) {
+
+                            primeraRespuesta = true;
+
+                            console.log(
+                                "Primera respuesta en:",
+                                ((performance.now() - inicio) / 1000).toFixed(2),
+                                "segundos"
+                            );
+                        }
+
+                        respuestaCompleta += fragmento;
+
+                        if (alRecibirTexto) {
+                            alRecibirTexto(respuestaCompleta);
+                        }
+                    }
+
+                } catch (error) {
+
+                    console.error("Error leyendo fragmento:", error);
+                }
+            }
+        }
+    }
+
+    respuestaCompleta = respuestaCompleta.trim();
+
+    if (!respuestaCompleta) {
+
+        throw new Error("La IA no devolvió una respuesta.");
+    }
+
+    console.log(
+        "Tiempo total IA:",
+        ((performance.now() - inicio) / 1000).toFixed(2),
+        "segundos"
+    );
+
+    return respuestaCompleta;
 }
+
 
 
 // =====================================
 // PROCESAR MENSAJE DEL USUARIO
 // =====================================
+
 
 async function procesarMensajeUsuario(mensaje) {
 
@@ -1150,8 +1240,6 @@ async function procesarMensajeUsuario(mensaje) {
     if (!texto) return;
 
     console.log("PROCESANDO MENSAJE:", texto);
-
-    // DETECTAR SOLICITUD DE HORA O FECHA
 
     if (esSolicitudHora(texto)) {
 
@@ -1163,8 +1251,6 @@ async function procesarMensajeUsuario(mensaje) {
 
         return;
     }
-
-    // CONSULTAR INTELIGENCIA ARTIFICIAL
 
     clearTimeout(temporizadorRegresoRostro);
 
@@ -1192,17 +1278,33 @@ async function procesarMensajeUsuario(mensaje) {
 
     try {
 
-        const respuesta = await consultarMiniRobot(texto);
+        const respuesta = await consultarMiniRobot(
+            texto,
+            function(textoParcial) {
+
+                cambiarTexto(
+                    respuestaElemento,
+                    "MINI ROBOT: " + textoParcial
+                );
+
+                cambiarTexto(
+                    robotMessage,
+                    "GENERANDO RESPUESTA"
+                );
+
+                cambiarTexto(
+                    robotSubmessage,
+                    "Estoy preparando mi respuesta..."
+                );
+            }
+        );
 
         cambiarTexto(
             respuestaElemento,
             "MINI ROBOT: " + respuesta
         );
 
-        cambiarTexto(
-            robotMessage,
-            "NUEVA RESPUESTA"
-        );
+        cambiarTexto(robotMessage, "NUEVA RESPUESTA");
 
         cambiarTexto(
             robotSubmessage,
@@ -1244,6 +1346,7 @@ async function procesarMensajeUsuario(mensaje) {
         );
     }
 }
+
 
 
 // =====================================
