@@ -388,18 +388,15 @@ if ("speechSynthesis" in window) {
 // HACER HABLAR AL ROBOT
 // =====================================
 
+let robotHablando = false;
+
 function hablarRobot(mensaje) {
 
     if (!("speechSynthesis" in window)) {
-
         console.log("Este navegador no admite voz.");
-
-        enviarEstadoRobot("IDLE");
-
+        finalizarVozBabas();
         return;
     }
-
-    // Detener cualquier mensaje anterior
 
     window.speechSynthesis.cancel();
 
@@ -410,54 +407,37 @@ function hablarRobot(mensaje) {
     }
 
     voz.lang = vozRobot ? vozRobot.lang : "es-ES";
-
     voz.rate = 1;
     voz.pitch = 1.1;
     voz.volume = 1;
 
-
-    // CUANDO COMIENZA A HABLAR
+    robotHablando = true;
 
     voz.onstart = function() {
 
         enviarEstadoRobot("HABLANDO");
 
         robotMessage.textContent = "ESTOY HABLANDO";
-
-        robotSubmessage.textContent =
-            "Escucha lo que tengo que contarte";
-
-        console.log("MINI ROBOT ESTA HABLANDO");
+        robotSubmessage.textContent = "Babas está hablando contigo";
     };
-
-
-    // CUANDO TERMINA DE HABLAR
 
     voz.onend = function() {
 
-        enviarEstadoRobot("IDLE");
-
-        robotMessage.textContent = "ROBOT ACTIVO";
-
-        robotSubmessage.textContent =
-            "Estoy esperando tu siguiente pregunta";
-
-        console.log("MINI ROBOT TERMINO DE HABLAR");
+        robotHablando = false;
+        finalizarVozBabas();
     };
-
-
-    // SI OCURRE UN ERROR DE VOZ
 
     voz.onerror = function(event) {
 
-        enviarEstadoRobot("IDLE");
-
         console.error("Error de voz:", event.error);
-    };
 
+        robotHablando = false;
+        finalizarVozBabas();
+    };
 
     window.speechSynthesis.speak(voz);
 }
+
 
 
 // =====================================
@@ -472,6 +452,138 @@ function detenerVozRobot() {
     }
 
     enviarEstadoRobot("IDLE");
+}
+
+
+// =====================================
+// SISTEMA DE ACTIVACION BABAS
+// =====================================
+
+let modoBabasActivo = false;
+
+let estadoBabas = "ESPERANDO_PALABRA";
+
+
+// INICIAR RECONOCIMIENTO AUTOMATICAMENTE
+
+function iniciarReconocimientoBabas() {
+
+    if (!modoBabasActivo) return;
+
+    if (!reconocimiento) return;
+
+    if (escuchando || robotHablando) return;
+
+    if (estadoBabas === "RESPONDIENDO") return;
+
+    try {
+
+        reconocimiento.start();
+
+    } catch(error) {
+
+        console.log("Reconocimiento ocupado:", error.message);
+    }
+}
+
+
+// FINALIZAR VOZ Y PREPARAR SIGUIENTE TURNO
+
+function finalizarVozBabas() {
+
+    if (modoBabasActivo) {
+
+        if (estadoBabas === "RESPONDIENDO") {
+
+            estadoBabas = "ESPERANDO_PALABRA";
+
+            enviarEstadoRobot("IDLE");
+
+            robotMessage.textContent = "ESTOY DISPONIBLE";
+
+            robotSubmessage.textContent =
+                "Di BABAS cuando quieras hablar conmigo";
+
+        } else if (estadoBabas === "ESPERANDO_PREGUNTA") {
+
+            enviarEstadoRobot("ESCUCHANDO");
+
+            robotMessage.textContent = "TE ESCUCHO";
+
+            robotSubmessage.textContent =
+                "Dime qué necesitas";
+
+        }
+
+        setTimeout(() => {
+
+            iniciarReconocimientoBabas();
+
+        }, 600);
+
+    } else {
+
+        enviarEstadoRobot("IDLE");
+    }
+}
+
+
+// ACTIVAR BABAS
+
+function activarBabas() {
+
+    if (!reconocimiento) {
+
+        alert("Tu navegador no admite reconocimiento de voz.");
+
+        return;
+    }
+
+    modoBabasActivo = true;
+
+    estadoBabas = "ESPERANDO_PALABRA";
+
+    robotMessage.textContent = "BABAS ACTIVADO";
+
+    robotSubmessage.textContent =
+        "Di BABAS para comenzar a conversar";
+
+    document.getElementById("estadoMicrofono").textContent =
+        "🎙️ Esperando la palabra BABAS...";
+
+    registrarActividad("Modo de activación BABAS iniciado.");
+
+    iniciarReconocimientoBabas();
+}
+
+
+// DESACTIVAR BABAS
+
+function desactivarBabas() {
+
+    modoBabasActivo = false;
+
+    estadoBabas = "ESPERANDO_PALABRA";
+
+    robotHablando = false;
+
+    if (reconocimiento && escuchando) {
+        reconocimiento.stop();
+    }
+
+    detenerVozRobot();
+
+    enviarEstadoRobot("IDLE");
+
+    robotMessage.textContent = "BABAS DESACTIVADO";
+
+    robotSubmessage.textContent =
+        "Activa el micrófono para volver a conversar";
+
+    document.getElementById("estadoMicrofono").textContent =
+        "Micrófono inactivo";
+
+    registrarActividad("Modo BABAS detenido.");
 }
 
 
@@ -501,6 +613,11 @@ document.addEventListener("DOMContentLoaded", function() {
 // RECONOCIMIENTO DE VOZ
 // =====================================
 
+
+// =====================================
+// RECONOCIMIENTO DE VOZ BABAS
+// =====================================
+
 const ReconocimientoVoz =
     window.SpeechRecognition ||
     window.webkitSpeechRecognition;
@@ -521,68 +638,175 @@ if (ReconocimientoVoz) {
     reconocimiento.interimResults = false;
 
 
-    // CUANDO EL USUARIO COMIENZA A HABLAR
+    // CUANDO COMIENZA A ESCUCHAR
 
     reconocimiento.onstart = function() {
 
         escuchando = true;
 
-        enviarEstadoRobot("ESCUCHANDO");
+        console.log("Babas está escuchando...");
 
-        robotMessage.textContent = "TE ESTOY ESCUCHANDO";
-
-        robotSubmessage.textContent =
-            "Estoy atento a lo que me dices";
-
-        document.getElementById("estadoMicrofono").textContent =
-            "🎙️ TE ESTOY ESCUCHANDO...";
     };
 
 
-    // CUANDO RECONOCE EL MENSAJE
+    // CUANDO RECONOCE UNA FRASE
 
     reconocimiento.onresult = function(event) {
 
-        const mensaje = event.results[0][0].transcript;
+        const mensaje =
+            event.results[0][0].transcript.trim();
+
+        console.log("Voz reconocida:", mensaje);
 
         document.getElementById("textoEscuchado").textContent =
             "Tú: " + mensaje;
 
-        enviarEstadoRobot("PENSANDO");
 
-        procesarMensajeUsuario(mensaje);
+        // BUSCAR LA PALABRA BABAS
+
+        if (estadoBabas === "ESPERANDO_PALABRA") {
+
+            const coincidencia =
+                mensaje.match(/babas[\s,.:;!?¿¡-]*(.*)$/i);
+
+            if (coincidencia) {
+
+                const pregunta = coincidencia[1].trim();
+
+                console.log("¡Babas activado!");
+
+                if (pregunta.length > 0) {
+
+                    // DIJO BABAS Y SU PREGUNTA EN UNA SOLA FRASE
+
+                    estadoBabas = "RESPONDIENDO";
+
+                    enviarEstadoRobot("PENSANDO");
+
+                    procesarMensajeUsuario(pregunta);
+
+                } else {
+
+                    // SOLO DIJO BABAS
+
+                    estadoBabas = "ESPERANDO_PREGUNTA";
+
+                    enviarEstadoRobot("ESCUCHANDO");
+
+                    robotMessage.textContent = "¡AQUÍ ESTOY!";
+
+                    robotSubmessage.textContent =
+                        "Te escucho, brother";
+
+                    hablarRobot("Aquí estoy, brother. Te escucho.");
+                }
+            }
+
+            return;
+        }
+
+
+        // RECIBIR LA PREGUNTA DESPUÉS DE BABAS
+
+        if (estadoBabas === "ESPERANDO_PREGUNTA") {
+
+            estadoBabas = "RESPONDIENDO";
+
+            enviarEstadoRobot("PENSANDO");
+
+            procesarMensajeUsuario(mensaje);
+        }
     };
 
 
-    // SI OCURRE UN ERROR DEL MICRÓFONO
+    // ERRORES
 
     reconocimiento.onerror = function(event) {
 
         escuchando = false;
 
-        enviarEstadoRobot("IDLE");
+        console.error("Error de micrófono:", event.error);
 
         document.getElementById("estadoMicrofono").textContent =
-            "Error del micrófono: " + event.error;
+            "Micrófono: " + event.error;
 
-        console.error("Error de reconocimiento:", event.error);
+        if (
+            event.error === "not-allowed" ||
+            event.error === "service-not-allowed"
+        ) {
+
+            modoBabasActivo = false;
+
+            robotMessage.textContent = "MICRÓFONO BLOQUEADO";
+
+            robotSubmessage.textContent =
+                "Revisa los permisos del navegador";
+        }
     };
 
 
-    // CUANDO TERMINA LA ESCUCHA
+    // CUANDO TERMINA UNA CAPTURA
 
     reconocimiento.onend = function() {
 
         escuchando = false;
 
-        document.getElementById("estadoMicrofono").textContent =
-            "Micrófono inactivo";
+        console.log("Finalizó la captura de voz.");
+
+        if (
+            modoBabasActivo &&
+            !robotHablando &&
+            estadoBabas !== "RESPONDIENDO"
+        ) {
+
+            setTimeout(() => {
+
+                iniciarReconocimientoBabas();
+
+            }, 600);
+        }
     };
 
 } else {
 
     console.log("Reconocimiento de voz no compatible.");
 }
+
+
+// =====================================
+// BOTONES DE ACTIVACION
+// =====================================
+
+document.addEventListener("DOMContentLoaded", function() {
+
+    const botonIniciar =
+        document.getElementById("iniciarEscucha");
+
+    const botonDetener =
+        document.getElementById("detenerEscucha");
+
+
+    if (botonIniciar) {
+
+        botonIniciar.addEventListener("click", function() {
+
+            activarBabas();
+
+        });
+    }
+
+
+    if (botonDetener) {
+
+        botonDetener.addEventListener("click", function() {
+
+            desactivarBabas();
+
+        });
+    }
+
+});
+
 
 
 // =====================================
