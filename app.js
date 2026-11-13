@@ -264,7 +264,10 @@ document.querySelectorAll("[data-command]").forEach(boton => {
 });
 
 
-// ENVIAR MENSAJE PERSONALIZADO
+
+// =====================================
+// ENVIAR MENSAJE PERSONALIZADO A LA IA
+// =====================================
 
 async function enviarMensaje() {
 
@@ -272,19 +275,9 @@ async function enviarMensaje() {
 
     if (!mensaje) return;
 
-    if (!/^[a-zA-Z0-9_]+$/.test(mensaje)) {
-
-        alert(
-            "Por ahora utiliza letras sin espacios, números o guion bajo."
-        );
-
-        return;
-    }
-
-    await enviarComando(mensaje);
-
     messageInput.value = "";
 
+    await procesarMensajeUsuario(mensaje);
 }
 
 sendMessageButton.addEventListener("click", enviarMensaje);
@@ -296,6 +289,7 @@ messageInput.addEventListener("keydown", event => {
     }
 
 });
+
 
 
 // BORRAR MEMORIA CON CONFIRMACIÓN
@@ -554,56 +548,115 @@ document.addEventListener("DOMContentLoaded", function() {
 });
 
 
-// =====================================
-// RESPUESTAS BASICAS DEL ROBOT
-// =====================================
 
-function procesarMensajeUsuario(mensaje) {
+ // =====================================
+ // INTELIGENCIA ARTIFICIAL OPENROUTER
+ // =====================================
 
-    const texto = mensaje.toLowerCase().trim();
+async function consultarMiniRobot(mensaje) {
 
-    let respuesta = "";
+    const respuesta = await fetch("/api/chat", {
 
-    if (texto.includes("hola")) {
+        method: "POST",
 
-        respuesta = "¡Hola brother! Qué alegría escucharte.";
+        headers: {
+            "Content-Type": "application/json"
+        },
 
-    }
+        body: JSON.stringify({
+            mensaje: mensaje
+        })
 
-    else if (texto.includes("cómo estás")) {
+    });
 
-        respuesta = "Estoy muy bien. Gracias por preguntarme.";
+    const datos = await respuesta.json();
 
-    }
+    if (!respuesta.ok) {
 
-    else if (texto.includes("cómo te llamas")) {
-
-        respuesta = "Soy tu mini robot asistente virtual.";
-
-    }
-
-    else if (texto.includes("hora")) {
-
-        respuesta = "Puedes consultar la hora en mi pantalla.";
+        throw new Error(
+            datos.error || "No se pudo conectar con la IA"
+        );
 
     }
 
-    else if (texto.includes("adiós") || texto.includes("hasta luego")) {
+    if (!datos.respuesta) {
 
-        respuesta = "¡Hasta pronto brother! Aquí estaré cuando me necesites.";
+        throw new Error("La IA no devolvió una respuesta.");
 
     }
 
-    else {
-
-        respuesta = "Te he escuchado brother. Todavía estoy aprendiendo a responder. Pronto tendré inteligencia artificial.";
-    }
-
-    document.getElementById("respuestaRobot").textContent =
-        "MINI ROBOT: " + respuesta;
-
-    hablarRobot(respuesta);
+    return datos.respuesta;
 }
+
+
+// =====================================
+// PROCESAR MENSAJE DEL USUARIO
+// =====================================
+
+async function procesarMensajeUsuario(mensaje) {
+
+    const respuestaElemento =
+        document.getElementById("respuestaRobot");
+
+    const texto = mensaje.trim();
+
+    if (!texto) return;
+
+    respuestaElemento.textContent =
+        "MINI ROBOT: Estoy pensando... 🤔";
+
+    robotMessage.textContent = "PROCESANDO";
+    robotSubmessage.textContent =
+        "Estoy consultando mi inteligencia artificial";
+
+    registrarActividad(
+        "Pregunta enviada a OpenRouter: " + texto
+    );
+
+    try {
+
+        const respuesta =
+            await consultarMiniRobot(texto);
+
+        respuestaElemento.textContent =
+            "MINI ROBOT: " + respuesta;
+
+        robotMessage.textContent = "NUEVA RESPUESTA";
+        robotSubmessage.textContent =
+            "Tengo algo que contarte";
+
+        registrarActividad(
+            "Respuesta recibida correctamente."
+        );
+
+        // El robot pronuncia la respuesta
+        hablarRobot(respuesta);
+
+    } catch (error) {
+
+        console.error("Error IA:", error);
+
+        respuestaElemento.textContent =
+            "MINI ROBOT: No pude conectarme con mi cerebro. " +
+            "Inténtalo nuevamente.";
+
+        robotMessage.textContent = "ERROR DE CONEXIÓN";
+        robotSubmessage.textContent =
+            "No pude consultar mi inteligencia artificial";
+
+        registrarActividad(
+            "Error de IA: " + error.message
+        );
+
+        hablarRobot(
+            "Brother, tuve un problema al conectarme. " +
+            "Por favor, inténtalo nuevamente."
+        );
+
+    }
+
+}
+
 
 
 
