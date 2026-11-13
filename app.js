@@ -442,6 +442,171 @@ document.addEventListener("DOMContentLoaded", function() {
 });
 
 
+
+ // =====================================
+ // RECONOCIMIENTO DE VOZ
+ // =====================================
+
+const ReconocimientoVoz =
+    window.SpeechRecognition ||
+    window.webkitSpeechRecognition;
+
+let reconocimiento = null;
+
+let escuchando = false;
+
+if (ReconocimientoVoz) {
+
+    reconocimiento = new ReconocimientoVoz();
+
+    reconocimiento.lang = "es-PE";
+    reconocimiento.continuous = false;
+    reconocimiento.interimResults = false;
+
+    reconocimiento.onstart = function() {
+
+        escuchando = true;
+
+        document.getElementById("estadoMicrofono").textContent =
+            "🎙️ TE ESTOY ESCUCHANDO...";
+    };
+
+    reconocimiento.onresult = function(event) {
+
+        const mensaje = event.results[0][0].transcript;
+
+        document.getElementById("textoEscuchado").textContent =
+            "Tú: " + mensaje;
+
+        procesarMensajeUsuario(mensaje);
+    };
+
+    reconocimiento.onerror = function(event) {
+
+        escuchando = false;
+
+        document.getElementById("estadoMicrofono").textContent =
+            "Error del micrófono: " + event.error;
+    };
+
+    reconocimiento.onend = function() {
+
+        escuchando = false;
+
+        document.getElementById("estadoMicrofono").textContent =
+            "Micrófono inactivo";
+    };
+
+} else {
+
+    console.log("Reconocimiento de voz no compatible.");
+}
+
+
+// =====================================
+// INICIAR Y DETENER MICROFONO
+// =====================================
+
+document.addEventListener("DOMContentLoaded", function() {
+
+    const botonIniciar =
+        document.getElementById("iniciarEscucha");
+
+    const botonDetener =
+        document.getElementById("detenerEscucha");
+
+    if (botonIniciar) {
+
+        botonIniciar.addEventListener("click", function() {
+
+            if (!reconocimiento) {
+
+                hablarRobot(
+                    "Lo siento, tu navegador no admite reconocimiento de voz."
+                );
+
+                return;
+            }
+
+            if (!escuchando) {
+
+                detenerVozRobot();
+
+                try {
+                    reconocimiento.start();
+                } catch(error) {
+                    console.log(error);
+                }
+            }
+        });
+    }
+
+    if (botonDetener) {
+
+        botonDetener.addEventListener("click", function() {
+
+            if (reconocimiento && escuchando) {
+                reconocimiento.stop();
+            }
+        });
+    }
+
+});
+
+
+// =====================================
+// RESPUESTAS BASICAS DEL ROBOT
+// =====================================
+
+function procesarMensajeUsuario(mensaje) {
+
+    const texto = mensaje.toLowerCase().trim();
+
+    let respuesta = "";
+
+    if (texto.includes("hola")) {
+
+        respuesta = "¡Hola brother! Qué alegría escucharte.";
+
+    }
+
+    else if (texto.includes("cómo estás")) {
+
+        respuesta = "Estoy muy bien. Gracias por preguntarme.";
+
+    }
+
+    else if (texto.includes("cómo te llamas")) {
+
+        respuesta = "Soy tu mini robot asistente virtual.";
+
+    }
+
+    else if (texto.includes("hora")) {
+
+        respuesta = "Puedes consultar la hora en mi pantalla.";
+
+    }
+
+    else if (texto.includes("adiós") || texto.includes("hasta luego")) {
+
+        respuesta = "¡Hasta pronto brother! Aquí estaré cuando me necesites.";
+
+    }
+
+    else {
+
+        respuesta = "Te he escuchado brother. Todavía estoy aprendiendo a responder. Pronto tendré inteligencia artificial.";
+    }
+
+    document.getElementById("respuestaRobot").textContent =
+        "MINI ROBOT: " + respuesta;
+
+    hablarRobot(respuesta);
+}
+
+
+
 // INICIO
 
 actualizarConexion(false);
