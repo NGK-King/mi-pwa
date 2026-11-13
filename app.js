@@ -5,6 +5,10 @@ const CHARACTERISTIC_UUID = "12345678-1234-1234-1234-1234567890ac";
 let robotDevice = null;
 let robotCharacteristic = null;
 
+// =====================================
+// ELEMENTOS HTML
+// =====================================
+
 const connectButton = document.getElementById("connectButton");
 const disconnectButton = document.getElementById("disconnectButton");
 
@@ -27,7 +31,7 @@ const respuestaElemento = document.getElementById("respuestaRobot");
 
 
 // =====================================
-// VARIABLES
+// VARIABLES DEL SISTEMA
 // =====================================
 
 const ReconocimientoVoz =
@@ -50,10 +54,24 @@ let mostrandoReloj = false;
 
 
 // =====================================
+// ACTUALIZAR TEXTO DE FORMA SEGURA
+// =====================================
+
+function cambiarTexto(elemento, mensaje) {
+
+    if (elemento) {
+        elemento.textContent = mensaje;
+    }
+}
+
+
+// =====================================
 // REGISTRO DE ACTIVIDAD
 // =====================================
 
 function registrarActividad(mensaje) {
+
+    if (!activityLog) return;
 
     const hora = new Date().toLocaleTimeString("es-PE");
 
@@ -75,30 +93,45 @@ function registrarActividad(mensaje) {
 
 function actualizarConexion(conectado) {
 
-    statusLight.classList.toggle("connected", conectado);
+    if (statusLight) {
+        statusLight.classList.toggle("connected", conectado);
+    }
 
-    statusText.textContent =
-        conectado ? "CONECTADO" : "DESCONECTADO";
+    cambiarTexto(
+        statusText,
+        conectado ? "CONECTADO" : "DESCONECTADO"
+    );
 
-    robotState.textContent =
-        conectado ? "ONLINE" : "OFFLINE";
+    cambiarTexto(
+        robotState,
+        conectado ? "ONLINE" : "OFFLINE"
+    );
 
-    connectButton.disabled = conectado;
-    disconnectButton.disabled = !conectado;
+    if (connectButton) {
+        connectButton.disabled = conectado;
+    }
+
+    if (disconnectButton) {
+        disconnectButton.disabled = !conectado;
+    }
 
     if (conectado) {
 
-        robotMessage.textContent = "ROBOT CONECTADO";
+        cambiarTexto(robotMessage, "ROBOT CONECTADO");
 
-        robotSubmessage.textContent =
-            "Comunicación Bluetooth establecida";
+        cambiarTexto(
+            robotSubmessage,
+            "Comunicación Bluetooth establecida"
+        );
 
     } else {
 
-        robotMessage.textContent = "HOLA, BROTHER";
+        cambiarTexto(robotMessage, "HOLA, BROTHER");
 
-        robotSubmessage.textContent =
-            "Tu compañero está esperando órdenes";
+        cambiarTexto(
+            robotSubmessage,
+            "Tu compañero está esperando órdenes"
+        );
     }
 }
 
@@ -149,12 +182,17 @@ async function conectarRobot() {
 
         await enviarComando("ROBOT");
 
-        estadoMicrofono.textContent = "Micrófono inactivo";
+        cambiarTexto(
+            estadoMicrofono,
+            "Micrófono inactivo"
+        );
 
-        robotMessage.textContent = "ROBOT LISTO";
+        cambiarTexto(robotMessage, "ROBOT LISTO");
 
-        robotSubmessage.textContent =
-            "Pulsa HABLAR cuando quieras conversar";
+        cambiarTexto(
+            robotSubmessage,
+            "Pulsa HABLAR cuando quieras conversar"
+        );
 
     } catch (error) {
 
@@ -200,7 +238,10 @@ function desconexionRobot() {
     robotCharacteristic = null;
     robotDevice = null;
 
-    estadoMicrofono.textContent = "Micrófono inactivo";
+    cambiarTexto(
+        estadoMicrofono,
+        "Micrófono inactivo"
+    );
 
     actualizarConexion(false);
 
@@ -274,40 +315,46 @@ async function enviarEstadoRobot(estado) {
 
 
 // =====================================
-// ACTUALIZAR MENSAJES
+// MENSAJES DE ESTADO
 // =====================================
 
 function actualizarMensaje(comando) {
 
     const mensajes = {
 
-        "FELIZ": ["ESTOY FELIZ", "¡Qué alegría!"],
-        "TRISTE": ["ESTOY TRISTE", "Necesito cariño"],
-        "SORPRESA": ["¡SORPRESA!", "No me lo esperaba"],
-        "ENOJADO": ["GRRR...", "Estoy enojado"],
-        "AMOR": ["TE QUIERO", "❤️"],
-        "SUENO": ["TENGO SUEÑO", "Hora de descansar"],
-        "HOLA": ["¡HOLA!", "Me alegra verte"],
-        "JAJA": ["JAJAJA", "¡Qué divertido!"],
-        "TEQUIERO": ["TE QUIERO", "❤️"],
-        "GRACIAS": ["¡GRACIAS!", "Eres genial"],
-        "UPS": ["¡UPS!", "¿Qué pasó?"],
-        "PERDON": ["ESTÁ BIEN", "No te preocupes"],
-        "GRRR": ["GRRR...", "Estoy enojado"],
-        "DESCANSAR": ["A DESCANSAR", "Buenas noches"],
-        "ROBOT": ["ROBOT ACTIVO", "Estoy despierto"],
-        "DORMIR": ["HASTA LUEGO", "Modo descanso"],
-        "DESPERTAR": ["¡DESPIERTO!", "Aquí estoy"],
-        "INFO": ["MOSTRANDO LA HORA", "Pantalla de reloj"],
-        "MEMORIA": ["MEMORIA", "Consultando recuerdos"],
-        "BORRAR": ["MEMORIA BORRADA", "Estadísticas reiniciadas"]
+        "ROBOT": [
+            "ROBOT ACTIVO",
+            "Estoy despierto"
+        ],
+
+        "DORMIR": [
+            "HASTA LUEGO",
+            "Modo descanso"
+        ],
+
+        "DESPERTAR": [
+            "¡DESPIERTO!",
+            "Aquí estoy"
+        ],
+
+        "INFO": [
+            "MOSTRANDO LA HORA",
+            "Pantalla de reloj"
+        ]
+
     };
 
     if (mensajes[comando]) {
 
-        robotMessage.textContent = mensajes[comando][0];
+        cambiarTexto(
+            robotMessage,
+            mensajes[comando][0]
+        );
 
-        robotSubmessage.textContent = mensajes[comando][1];
+        cambiarTexto(
+            robotSubmessage,
+            mensajes[comando][1]
+        );
     }
 }
 
@@ -389,7 +436,9 @@ async function mostrarHoraRobot() {
 
     if (!robotCharacteristic) {
 
-        registrarActividad("No se puede mostrar el reloj: robot desconectado.");
+        registrarActividad(
+            "No se puede mostrar el reloj: robot desconectado."
+        );
 
         return;
     }
@@ -402,18 +451,17 @@ async function mostrarHoraRobot() {
 
     registrarActividad("Detectada solicitud de hora o fecha.");
 
-    robotMessage.textContent = "MOSTRANDO RELOJ";
+    cambiarTexto(robotMessage, "MOSTRANDO RELOJ");
 
-    robotSubmessage.textContent =
-        "Hora y fecha durante 10 segundos";
+    cambiarTexto(
+        robotSubmessage,
+        "Hora y fecha durante 10 segundos"
+    );
 
-    if (respuestaElemento) {
-
-        respuestaElemento.textContent =
-            "MINI ROBOT: Aquí tienes la hora y la fecha.";
-    }
-
-    // ENVIAR INFO AL ESP32
+    cambiarTexto(
+        respuestaElemento,
+        "MINI ROBOT: Aquí tienes la hora y la fecha."
+    );
 
     const enviado = await enviarComando("INFO");
 
@@ -421,17 +469,20 @@ async function mostrarHoraRobot() {
 
         mostrandoReloj = false;
 
-        robotMessage.textContent = "ERROR AL MOSTRAR RELOJ";
+        cambiarTexto(
+            robotMessage,
+            "ERROR AL MOSTRAR RELOJ"
+        );
 
-        robotSubmessage.textContent =
-            "No pude enviar INFO al ESP32";
+        cambiarTexto(
+            robotSubmessage,
+            "No pude enviar INFO al ESP32"
+        );
 
         return;
     }
 
     registrarActividad("INFO enviado. Esperando 10 segundos.");
-
-    // VOLVER A LOS OJOS ANIMADOS
 
     temporizadorRegresoRostro = setTimeout(async () => {
 
@@ -442,7 +493,9 @@ async function mostrarHoraRobot() {
             return;
         }
 
-        registrarActividad("Han pasado 10 segundos. Regresando al rostro.");
+        registrarActividad(
+            "Han pasado 10 segundos. Regresando al rostro."
+        );
 
         const regresado = await enviarComando("ROBOT");
 
@@ -450,10 +503,12 @@ async function mostrarHoraRobot() {
 
         if (regresado) {
 
-            robotMessage.textContent = "ROBOT ACTIVO";
+            cambiarTexto(robotMessage, "ROBOT ACTIVO");
 
-            robotSubmessage.textContent =
-                "He vuelto a mis ojos animados";
+            cambiarTexto(
+                robotSubmessage,
+                "He vuelto a mis ojos animados"
+            );
 
             registrarActividad("ROBOT enviado correctamente.");
         }
@@ -468,18 +523,23 @@ async function mostrarHoraRobot() {
 // BOTONES DE CONEXIÓN
 // =====================================
 
-connectButton.addEventListener("click", conectarRobot);
+if (connectButton) {
+    connectButton.addEventListener("click", conectarRobot);
+}
 
-disconnectButton.addEventListener("click", () => {
+if (disconnectButton) {
 
-    if (robotDevice && robotDevice.gatt.connected) {
-        robotDevice.gatt.disconnect();
-    }
-});
+    disconnectButton.addEventListener("click", () => {
+
+        if (robotDevice && robotDevice.gatt.connected) {
+            robotDevice.gatt.disconnect();
+        }
+    });
+}
 
 
 // =====================================
-// BOTONES DE EMOCIONES
+// CONTROLES DEL OLED
 // =====================================
 
 document.querySelectorAll("[data-command]").forEach(boton => {
@@ -508,6 +568,8 @@ document.querySelectorAll("[data-command]").forEach(boton => {
 
 async function enviarMensaje() {
 
+    if (!messageInput) return;
+
     const mensaje = messageInput.value.trim();
 
     if (!mensaje) return;
@@ -517,31 +579,19 @@ async function enviarMensaje() {
     await procesarMensajeUsuario(mensaje);
 }
 
-sendMessageButton.addEventListener("click", enviarMensaje);
+if (sendMessageButton) {
+    sendMessageButton.addEventListener("click", enviarMensaje);
+}
 
-messageInput.addEventListener("keydown", event => {
+if (messageInput) {
 
-    if (event.key === "Enter") {
-        enviarMensaje();
-    }
-});
+    messageInput.addEventListener("keydown", event => {
 
-
-// =====================================
-// BORRAR MEMORIA
-// =====================================
-
-document.getElementById("clearMemoryButton")
-    .addEventListener("click", async () => {
-
-        const confirmar = confirm(
-            "¿Estás seguro de borrar la memoria del robot?"
-        );
-
-        if (confirmar) {
-            await enviarComando("BORRAR");
+        if (event.key === "Enter") {
+            enviarMensaje();
         }
     });
+}
 
 
 // =====================================
@@ -609,7 +659,7 @@ if ("speechSynthesis" in window) {
 
 
 // =====================================
-// HABLAR
+// HACER HABLAR AL ROBOT
 // =====================================
 
 function hablarRobot(mensaje) {
@@ -647,10 +697,12 @@ function hablarRobot(mensaje) {
 
         enviarEstadoRobot("HABLANDO");
 
-        robotMessage.textContent = "ESTOY HABLANDO";
+        cambiarTexto(robotMessage, "ESTOY HABLANDO");
 
-        robotSubmessage.textContent =
-            "Babas está hablando contigo";
+        cambiarTexto(
+            robotSubmessage,
+            "Babas está hablando contigo"
+        );
     };
 
     voz.onend = function() {
@@ -663,10 +715,15 @@ function hablarRobot(mensaje) {
 
         if (!mostrandoReloj) {
 
-            robotMessage.textContent = "ESTOY DISPONIBLE";
+            cambiarTexto(
+                robotMessage,
+                "ESTOY DISPONIBLE"
+            );
 
-            robotSubmessage.textContent =
-                "Pulsa HABLAR cuando quieras conversar";
+            cambiarTexto(
+                robotSubmessage,
+                "Pulsa HABLAR cuando quieras conversar"
+            );
         }
     };
 
@@ -707,22 +764,19 @@ function detenerVozRobot() {
 // PRUEBA DE VOZ
 // =====================================
 
-document.addEventListener("DOMContentLoaded", function() {
+const botonVoz = document.getElementById("probarVoz");
 
-    const botonVoz = document.getElementById("probarVoz");
+if (botonVoz) {
 
-    if (botonVoz) {
+    botonVoz.addEventListener("click", function() {
 
-        botonVoz.addEventListener("click", function() {
-
-            hablarRobot(
-                "Hola brother. Soy tu mini robot. " +
-                "Ahora puedo hablar contigo desde tu celular. " +
-                "¡Vamos a convertirnos en grandes amigos!"
-            );
-        });
-    }
-});
+        hablarRobot(
+            "Hola brother. Soy tu mini robot. " +
+            "Ahora puedo hablar contigo desde tu celular. " +
+            "¡Vamos a convertirnos en grandes amigos!"
+        );
+    });
+}
 
 
 // =====================================
@@ -773,14 +827,22 @@ function iniciarEscuchaManual() {
 
     detenerSolicitado = false;
 
-    textoEscuchado.textContent = "Te estoy escuchando...";
+    cambiarTexto(
+        textoEscuchado,
+        "Te estoy escuchando..."
+    );
 
-    estadoMicrofono.textContent = "🎙️ MICRÓFONO ACTIVADO";
+    cambiarTexto(
+        estadoMicrofono,
+        "🎙️ MICRÓFONO ACTIVADO"
+    );
 
-    robotMessage.textContent = "TE ESCUCHO";
+    cambiarTexto(robotMessage, "TE ESCUCHO");
 
-    robotSubmessage.textContent =
-        "Habla y pulsa DETENER cuando termines";
+    cambiarTexto(
+        robotSubmessage,
+        "Habla y pulsa DETENER cuando termines"
+    );
 
     enviarEstadoRobot("ESCUCHANDO");
 
@@ -794,7 +856,9 @@ function iniciarEscuchaManual() {
 
         console.error(error);
 
-        registrarActividad("Error al iniciar micrófono: " + error.message);
+        registrarActividad(
+            "Error al iniciar micrófono: " + error.message
+        );
     }
 }
 
@@ -811,12 +875,17 @@ function detenerEscuchaManual() {
 
     detenerSolicitado = true;
 
-    estadoMicrofono.textContent = "Procesando tu mensaje...";
+    cambiarTexto(
+        estadoMicrofono,
+        "Procesando tu mensaje..."
+    );
 
-    robotMessage.textContent = "PROCESANDO AUDIO";
+    cambiarTexto(robotMessage, "PROCESANDO AUDIO");
 
-    robotSubmessage.textContent =
-        "Estoy preparando tu pregunta";
+    cambiarTexto(
+        robotSubmessage,
+        "Estoy preparando tu pregunta"
+    );
 
     reconocimiento.stop();
 
@@ -834,7 +903,10 @@ if (reconocimiento) {
 
         escuchando = true;
 
-        estadoMicrofono.textContent = "🎙️ ESCUCHANDO...";
+        cambiarTexto(
+            estadoMicrofono,
+            "🎙️ ESCUCHANDO..."
+        );
 
         registrarActividad("Reconocimiento iniciado.");
     };
@@ -867,23 +939,35 @@ if (reconocimiento) {
         const textoVisible =
             (textoCapturado + textoTemporal).trim();
 
-        textoEscuchado.textContent =
+        cambiarTexto(
+            textoEscuchado,
             textoVisible
                 ? "Tú: " + textoVisible
-                : "Te estoy escuchando...";
+                : "Te estoy escuchando..."
+        );
 
-        console.log("Texto detectado por micrófono:", textoVisible);
+        console.log(
+            "Texto detectado por micrófono:",
+            textoVisible
+        );
     };
 
 
     reconocimiento.onerror = function(event) {
 
-        console.error("Error de reconocimiento:", event.error);
+        console.error(
+            "Error de reconocimiento:",
+            event.error
+        );
 
-        estadoMicrofono.textContent =
-            "Error: " + event.error;
+        cambiarTexto(
+            estadoMicrofono,
+            "Error: " + event.error
+        );
 
-        registrarActividad("Error de micrófono: " + event.error);
+        registrarActividad(
+            "Error de micrófono: " + event.error
+        );
 
         if (
             event.error === "not-allowed" ||
@@ -892,20 +976,30 @@ if (reconocimiento) {
 
             detenerSolicitado = false;
 
-            robotMessage.textContent = "MICRÓFONO BLOQUEADO";
+            cambiarTexto(
+                robotMessage,
+                "MICRÓFONO BLOQUEADO"
+            );
 
-            robotSubmessage.textContent =
-                "Permite el acceso al micrófono";
+            cambiarTexto(
+                robotSubmessage,
+                "Permite el acceso al micrófono"
+            );
         }
 
         if (event.error === "audio-capture") {
 
             detenerSolicitado = false;
 
-            robotMessage.textContent = "ERROR DE MICRÓFONO";
+            cambiarTexto(
+                robotMessage,
+                "ERROR DE MICRÓFONO"
+            );
 
-            robotSubmessage.textContent =
-                "Comprueba el micrófono de tu celular";
+            cambiarTexto(
+                robotSubmessage,
+                "Comprueba el micrófono de tu celular"
+            );
         }
     };
 
@@ -926,23 +1020,39 @@ if (reconocimiento) {
 
         if (!mensaje) {
 
-            estadoMicrofono.textContent = "Micrófono inactivo";
+            cambiarTexto(
+                estadoMicrofono,
+                "Micrófono inactivo"
+            );
 
-            robotMessage.textContent = "NO DETECTÉ TU VOZ";
+            cambiarTexto(
+                robotMessage,
+                "NO DETECTÉ TU VOZ"
+            );
 
-            robotSubmessage.textContent =
-                "Pulsa HABLAR e inténtalo nuevamente";
+            cambiarTexto(
+                robotSubmessage,
+                "Pulsa HABLAR e inténtalo nuevamente"
+            );
 
             enviarEstadoRobot("IDLE");
 
             return;
         }
 
-        textoEscuchado.textContent = "Tú: " + mensaje;
+        cambiarTexto(
+            textoEscuchado,
+            "Tú: " + mensaje
+        );
 
-        registrarActividad("FRASE RECONOCIDA: " + mensaje);
+        registrarActividad(
+            "FRASE RECONOCIDA: " + mensaje
+        );
 
-        estadoMicrofono.textContent = "Pregunta enviada";
+        cambiarTexto(
+            estadoMicrofono,
+            "Pregunta enviada"
+        );
 
         procesandoPregunta = true;
 
@@ -954,7 +1064,10 @@ if (reconocimiento) {
 
             procesandoPregunta = false;
 
-            estadoMicrofono.textContent = "Micrófono inactivo";
+            cambiarTexto(
+                estadoMicrofono,
+                "Micrófono inactivo"
+            );
         }
     };
 }
@@ -1017,7 +1130,9 @@ async function consultarMiniRobot(mensaje) {
 
     if (!datos.respuesta) {
 
-        throw new Error("La IA no devolvió una respuesta.");
+        throw new Error(
+            "La IA no devolvió una respuesta."
+        );
     }
 
     return datos.respuesta;
@@ -1036,21 +1151,20 @@ async function procesarMensajeUsuario(mensaje) {
 
     console.log("PROCESANDO MENSAJE:", texto);
 
-    // PRIMERO COMPROBAR SI PIDE HORA O FECHA
+    // DETECTAR SOLICITUD DE HORA O FECHA
 
     if (esSolicitudHora(texto)) {
 
-        registrarActividad("COMANDO ESPECIAL: MOSTRAR RELOJ");
-
-        // IMPORTANTE: NO CONSULTAR OPENROUTER
+        registrarActividad(
+            "COMANDO ESPECIAL: MOSTRAR RELOJ"
+        );
 
         await mostrarHoraRobot();
 
         return;
     }
 
-
-    // SI NO ES UNA SOLICITUD DE HORA, CONSULTAR IA
+    // CONSULTAR INTELIGENCIA ARTIFICIAL
 
     clearTimeout(temporizadorRegresoRostro);
 
@@ -1060,29 +1174,44 @@ async function procesarMensajeUsuario(mensaje) {
 
     enviarEstadoRobot("PENSANDO");
 
-    respuestaElemento.textContent =
-        "MINI ROBOT: Estoy pensando... 🤔";
+    cambiarTexto(
+        respuestaElemento,
+        "MINI ROBOT: Estoy pensando... 🤔"
+    );
 
-    robotMessage.textContent = "PROCESANDO";
+    cambiarTexto(robotMessage, "PROCESANDO");
 
-    robotSubmessage.textContent =
-        "Estoy consultando mi inteligencia artificial";
+    cambiarTexto(
+        robotSubmessage,
+        "Estoy consultando mi inteligencia artificial"
+    );
 
-    registrarActividad("Pregunta enviada a OpenRouter: " + texto);
+    registrarActividad(
+        "Pregunta enviada a OpenRouter: " + texto
+    );
 
     try {
 
         const respuesta = await consultarMiniRobot(texto);
 
-        respuestaElemento.textContent =
-            "MINI ROBOT: " + respuesta;
+        cambiarTexto(
+            respuestaElemento,
+            "MINI ROBOT: " + respuesta
+        );
 
-        robotMessage.textContent = "NUEVA RESPUESTA";
+        cambiarTexto(
+            robotMessage,
+            "NUEVA RESPUESTA"
+        );
 
-        robotSubmessage.textContent =
-            "Tengo algo que contarte";
+        cambiarTexto(
+            robotSubmessage,
+            "Tengo algo que contarte"
+        );
 
-        registrarActividad("Respuesta recibida correctamente.");
+        registrarActividad(
+            "Respuesta recibida correctamente."
+        );
 
         hablarRobot(respuesta);
 
@@ -1090,15 +1219,24 @@ async function procesarMensajeUsuario(mensaje) {
 
         console.error("Error IA:", error);
 
-        respuestaElemento.textContent =
-            "MINI ROBOT: No pude conectarme con mi cerebro.";
+        cambiarTexto(
+            respuestaElemento,
+            "MINI ROBOT: No pude conectarme con mi cerebro."
+        );
 
-        robotMessage.textContent = "ERROR DE CONEXIÓN";
+        cambiarTexto(
+            robotMessage,
+            "ERROR DE CONEXIÓN"
+        );
 
-        robotSubmessage.textContent =
-            "No pude consultar mi inteligencia artificial";
+        cambiarTexto(
+            robotSubmessage,
+            "No pude consultar mi inteligencia artificial"
+        );
 
-        registrarActividad("Error de IA: " + error.message);
+        registrarActividad(
+            "Error de IA: " + error.message
+        );
 
         hablarRobot(
             "Brother, tuve un problema al conectarme. " +
@@ -1109,9 +1247,13 @@ async function procesarMensajeUsuario(mensaje) {
 
 
 // =====================================
-// INICIO
+// INICIO DEL SISTEMA
 // =====================================
 
 actualizarConexion(false);
 
-registrarActividad("MINI ROBOT CONTROL iniciado.");
+registrarActividad(
+    "MINI ROBOT COMMAND CENTER iniciado."
+);
+
+console.log("MINI ROBOT AI iniciado correctamente.");
