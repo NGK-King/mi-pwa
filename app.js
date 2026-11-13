@@ -52,6 +52,13 @@ let idVozActual = 0;
 
 
 // =====================================
+// TEMPORIZADOR DE PANTALLA
+// =====================================
+
+let temporizadorRegresoRostro = null;
+
+
+// =====================================
 // REGISTRO DE ACTIVIDAD
 // =====================================
 
@@ -190,6 +197,9 @@ async function conectarRobot() {
 
 function desconexionRobot() {
 
+    clearTimeout(temporizadorRegresoRostro);
+    temporizadorRegresoRostro = null;
+
     detenerSolicitado = false;
 
     if (reconocimiento && escuchando) {
@@ -223,14 +233,14 @@ async function enviarComando(comando) {
 
         alert("Primero conecta tu mini robot.");
 
-        return;
+        return false;
     }
 
     try {
 
         const orden = comando.trim().toUpperCase();
 
-        if (!orden) return;
+        if (!orden) return false;
 
         const datos = new TextEncoder().encode(orden);
 
@@ -240,6 +250,8 @@ async function enviarComando(comando) {
 
         actualizarMensaje(orden);
 
+        return true;
+
     } catch (error) {
 
         console.error(error);
@@ -247,6 +259,8 @@ async function enviarComando(comando) {
         registrarActividad("Error al enviar: " + error.message);
 
         alert("No se pudo enviar el comando.");
+
+        return false;
     }
 }
 
@@ -299,7 +313,7 @@ function actualizarMensaje(comando) {
         "ROBOT": ["ROBOT ACTIVO", "Estoy despierto"],
         "DORMIR": ["HASTA LUEGO", "Modo descanso"],
         "DESPERTAR": ["¡DESPIERTO!", "Aquí estoy"],
-        "INFO": ["INFORMACIÓN", "Modo reloj"],
+        "INFO": ["MOSTRANDO LA HORA", "Pantalla de reloj"],
         "MEMORIA": ["MEMORIA", "Consultando recuerdos"],
         "BORRAR": ["MEMORIA BORRADA", "Estadísticas reiniciadas"]
     };
@@ -310,6 +324,86 @@ function actualizarMensaje(comando) {
 
         robotSubmessage.textContent = mensajes[comando][1];
     }
+}
+
+
+// =====================================
+// MOSTRAR HORA DURANTE 10 SEGUNDOS
+// =====================================
+
+async function mostrarHoraRobot() {
+
+    if (!robotCharacteristic) {
+
+        registrarActividad("No se puede mostrar la hora: robot desconectado.");
+
+        return;
+    }
+
+    // CANCELAR TEMPORIZADOR ANTERIOR
+
+    clearTimeout(temporizadorRegresoRostro);
+    temporizadorRegresoRostro = null;
+
+    // ENVIAR COMANDO INFO AL ESP32
+
+    const enviado = await enviarComando("INFO");
+
+    if (!enviado) return;
+
+    robotMessage.textContent = "MOSTRANDO LA HORA";
+
+    robotSubmessage.textContent =
+        "Regresaré a mis ojos animados en 10 segundos";
+
+    document.getElementById("respuestaRobot").textContent =
+        "MINI ROBOT: Aquí tienes la hora y la fecha.";
+
+    registrarActividad(
+        "Reloj OLED activado durante 10 segundos."
+    );
+
+    // REGRESAR A LOS OJOS ANIMADOS
+
+    temporizadorRegresoRostro = setTimeout(async () => {
+
+        if (!robotCharacteristic) return;
+
+        const regresado = await enviarComando("ROBOT");
+
+        if (regresado) {
+
+            robotMessage.textContent = "ESTOY DISPONIBLE";
+
+            robotSubmessage.textContent =
+                "He vuelto a mis ojos animados";
+
+            registrarActividad(
+                "Regreso automático a los ojos animados."
+            );
+        }
+
+        temporizadorRegresoRostro = null;
+
+    }, 10000);
+}
+
+
+// =====================================
+// DETECTAR SOLICITUD DE HORA
+// =====================================
+
+function esSolicitudHora(mensaje) {
+
+    const textoNormalizado = mensaje
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+
+    return (
+        /\b(hora|reloj)\b/.test(textoNormalizado) ||
+        /\b(que fecha es|muestrame la fecha|ensename la fecha)\b/.test(textoNormalizado)
+    );
 }
 
 
@@ -334,7 +428,16 @@ document.querySelectorAll("[data-command]").forEach(boton => {
 
     boton.addEventListener("click", () => {
 
-        enviarComando(boton.dataset.command);
+        const comando = boton.dataset.command;
+
+        // Si se solicita otra acción, cancelar el regreso automático
+        if (comando !== "INFO") {
+
+            clearTimeout(temporizadorRegresoRostro);
+            temporizadorRegresoRostro = null;
+        }
+
+        enviarComando(comando);
     });
 });
 
@@ -901,6 +1004,22 @@ async function procesarMensajeUsuario(mensaje) {
     const texto = mensaje.trim();
 
     if (!texto) return;
+
+    // DETECTAR SOLICITUD DE HORA O FECHA
+    // NO CONSULTAR OPENROUTER PARA ESTA ACCIÓN
+
+    if (esSolicitudHora(texto)) {
+
+        await mostrarHoraRobot();
+
+        return;
+    }
+
+    // CANCELAR REGRESO AUTOMÁTICO SI SE REALIZA
+    // UNA NUEVA CONSULTA NORMAL
+
+    clearTimeout(temporizadorRegresoRostro);
+    temporizadorRegresoRostro = null;
 
     enviarEstadoRobot("PENSANDO");
 
