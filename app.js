@@ -355,6 +355,93 @@ if ("serviceWorker" in navigator) {
 }
 
 
+// =====================================
+// VOZ DEL MINI ROBOT
+// =====================================
+
+let vozRobot = null;
+
+// Buscar una voz en español
+function cargarVozRobot() {
+
+    const voces = window.speechSynthesis.getVoices();
+
+    vozRobot =
+        voces.find(v => v.lang === "es-PE") ||
+        voces.find(v => v.lang === "es-MX") ||
+        voces.find(v => v.lang.startsWith("es")) ||
+        null;
+}
+
+// Cargar voces disponibles
+cargarVozRobot();
+
+window.speechSynthesis.onvoiceschanged = cargarVozRobot;
+
+// =====================================
+// HACER HABLAR AL ROBOT
+// =====================================
+
+function hablarRobot(mensaje) {
+
+    if (!("speechSynthesis" in window)) {
+        console.log("Este navegador no admite voz.");
+        return;
+    }
+
+    // Detener cualquier mensaje anterior
+    window.speechSynthesis.cancel();
+
+    const voz = new SpeechSynthesisUtterance(mensaje);
+
+    if (vozRobot) {
+        voz.voice = vozRobot;
+    }
+
+    voz.lang = vozRobot ? vozRobot.lang : "es-ES";
+
+    // Configuración de la voz
+    voz.rate = 1;
+    voz.pitch = 1.1;
+    voz.volume = 1;
+
+    window.speechSynthesis.speak(voz);
+}
+
+// =====================================
+// DETENER LA VOZ
+// =====================================
+
+function detenerVozRobot() {
+
+    window.speechSynthesis.cancel();
+}
+
+// =====================================
+// PRUEBA DE VOZ
+// =====================================
+
+document.addEventListener("DOMContentLoaded", function() {
+
+    const botonVoz = document.getElementById("probarVoz");
+
+    if (botonVoz) {
+
+        botonVoz.addEventListener("click", function() {
+
+            hablarRobot(
+                "Hola brother. Soy tu mini robot. " +
+                "Ahora puedo hablar contigo desde tu celular. " +
+                "¡Vamos a convertirnos en grandes amigos!"
+            );
+
+        });
+
+    }
+
+});
+
+
 // INICIO
 
 actualizarConexion(false);
