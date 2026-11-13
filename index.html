@@ -1,13 +1,14 @@
+```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta name="theme-color" content="#080d18">
-    <meta name="description" content="Controla tu mini robot ESP32 por Bluetooth">
+    <meta name="theme-color" content="#050816">
+    <meta name="description" content="MINI ROBOT AI - Centro de inteligencia artificial">
 
-    <title>MINI ROBOT CONTROL</title>
+    <title>MINI ROBOT AI | SYSTEM</title>
 
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
@@ -18,286 +19,391 @@
 
 <div class="app-container">
 
+    <!-- ================================= -->
+    <!-- ENCABEZADO -->
+    <!-- ================================= -->
+
     <header class="topbar">
+
         <div class="brand">
-            <div class="brand-icon">🤖</div>
+
+            <div class="brand-icon">◈</div>
+
             <div>
-                <h1>MINI ROBOT</h1>
-                <span>CONTROL CENTER <b>1.0</b></span>
+                <h1>MINI ROBOT <span>AI</span></h1>
+                <span class="brand-subtitle">ARTIFICIAL INTELLIGENCE SYSTEM</span>
             </div>
+
         </div>
 
         <div class="connection-indicator">
+
             <span id="statusLight" class="status-light"></span>
+
             <span id="statusText">DESCONECTADO</span>
+
         </div>
+
     </header>
+
 
     <main>
 
-        <section class="robot-panel">
+        <!-- ================================= -->
+        <!-- PANEL PRINCIPAL -->
+        <!-- ================================= -->
 
-            <div class="panel-label">
-                <span>ROBOT INTERFACE</span>
-                <span class="live-indicator">● LIVE</span>
+        <section class="hero-panel">
+
+            <div class="hero-top">
+
+                <span class="system-tag">
+                    <span class="live-indicator">●</span>
+                    SYSTEM ONLINE
+                </span>
+
+                <span class="version-tag">VERSION 2.0</span>
+
             </div>
 
-            <div class="robot-face">
-                <div class="robot-glow"></div>
-                <div class="robot-eyes">
-                    <div class="eye"></div>
-                    <div class="eye"></div>
+            <div class="hero-content">
+
+                <div class="hero-symbol">
+                    <div class="symbol-ring"></div>
+                    <div class="symbol-core">AI</div>
                 </div>
-                <div class="robot-mouth"></div>
+
+                <div class="hero-text">
+
+                    <p class="eyebrow">PERSONAL AI ASSISTANT</p>
+
+                    <h2>MINI ROBOT</h2>
+
+                    <p>Tu compañero inteligente está listo para conversar.</p>
+
+                </div>
+
             </div>
 
-            <h2 id="robotMessage">HOLA, BROTHER</h2>
-            <p id="robotSubmessage">Tu compañero está esperando órdenes</p>
+            <div class="hero-footer">
 
-            <div class="robot-info">
                 <div>
-                    <span>DISPOSITIVO</span>
+                    <span>PROCESSOR</span>
                     <strong>ESP32-C3</strong>
                 </div>
+
                 <div>
-                    <span>CONEXIÓN</span>
-                    <strong id="connectionType">BLE</strong>
+                    <span>COMMUNICATION</span>
+                    <strong>BLUETOOTH LE</strong>
                 </div>
+
                 <div>
-                    <span>ESTADO</span>
-                    <strong id="robotState">OFFLINE</strong>
+                    <span>INTELLIGENCE</span>
+                    <strong>OPENROUTER AI</strong>
                 </div>
+
             </div>
 
         </section>
+
+
+        <!-- ================================= -->
+        <!-- CONEXION -->
+        <!-- ================================= -->
 
         <section class="connection-panel">
 
             <div class="section-heading">
-                <h2>CONEXIÓN BLUETOOTH</h2>
-                <span class="section-number">01</span>
+
+                <div>
+                    <span class="section-kicker">01 / HARDWARE</span>
+                    <h2>CONEXIÓN DEL DISPOSITIVO</h2>
+                </div>
+
+                <span class="section-icon">◉</span>
+
             </div>
 
-            <button id="connectButton" class="main-button">
-                <span>◉</span> CONECTAR ROBOT
-            </button>
+            <div class="device-card">
 
-            <button id="disconnectButton" class="secondary-button" disabled>
-                DESCONECTAR
-            </button>
+                <div class="device-info">
+
+                    <div class="device-icon">⌁</div>
+
+                    <div>
+                        <strong>MINI_ROBOT</strong>
+                        <span>ESP32-C3 · BLE DEVICE</span>
+                    </div>
+
+                </div>
+
+                <div class="device-status" id="connectionType">
+                    BLUETOOTH
+                </div>
+
+            </div>
+
+            <div class="connection-buttons">
+
+                <button id="connectButton" class="main-button">
+                    <span>◉</span>
+                    CONECTAR DISPOSITIVO
+                </button>
+
+                <button id="disconnectButton" class="secondary-button" disabled>
+                    DESCONECTAR
+                </button>
+
+            </div>
+
+            <div class="connection-details">
+
+                <span>DEVICE STATUS</span>
+                <strong id="robotState">OFFLINE</strong>
+
+            </div>
 
         </section>
 
-        <section class="control-panel">
+
+        <!-- ================================= -->
+        <!-- ASISTENTE IA -->
+        <!-- ================================= -->
+
+        <section class="assistant-panel">
 
             <div class="section-heading">
-                <h2>CONTROL DE EMOCIONES</h2>
-                <span class="section-number">02</span>
-            </div>
 
-            <div class="emotion-grid">
-			
-				
-				<button id="probarVoz" class="emotion-button">
-					🔊 PROBAR VOZ DEL ROBOT
-				</button>
-				
-				
-				<div class="voice-controls">
-					<button id="iniciarEscucha" class="btn-primary">
-						🎙️ HABLAR CON EL ROBOT
-					</button>
+                <div>
+                    <span class="section-kicker">02 / ARTIFICIAL INTELLIGENCE</span>
+                    <h2>ASISTENTE INTELIGENTE</h2>
+                </div>
 
-					<button id="detenerEscucha" class="btn-primary">
-						⏹️ DETENER
-					</button>
-
-					<p id="estadoMicrofono">Micrófono inactivo</p>
-
-					<div id="textoEscuchado">
-						Aquí aparecerá lo que dices...
-					</div>
-
-					<div id="respuestaRobot">
-						Esperando tu mensaje...
-					</div>
-				</div>
-
-
-                <button class="emotion-button" data-command="FELIZ">
-                    <span>😊</span>
-                    FELIZ
-                </button>
-
-                <button class="emotion-button" data-command="TRISTE">
-                    <span>😢</span>
-                    TRISTE
-                </button>
-
-                <button class="emotion-button" data-command="SORPRESA">
-                    <span>😮</span>
-                    SORPRESA
-                </button>
-
-                <button class="emotion-button" data-command="ENOJADO">
-                    <span>😠</span>
-                    ENOJADO
-                </button>
-
-                <button class="emotion-button" data-command="AMOR">
-                    <span>❤️</span>
-                    AMOR
-                </button>
-
-                <button class="emotion-button" data-command="SUENO">
-                    <span>😴</span>
-                    SUEÑO
-                </button>
+                <span class="section-icon">✧</span>
 
             </div>
 
-        </section>
+            <div class="assistant-status">
 
-        <section class="control-panel">
+                <div class="assistant-indicator">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
 
-            <div class="section-heading">
-                <h2>ACCIONES DEL ROBOT</h2>
-                <span class="section-number">03</span>
+                <div>
+                    <strong>AI ASSISTANT READY</strong>
+                    <p>Esperando una nueva conversación...</p>
+                </div>
+
             </div>
 
-            <div class="action-grid">
 
-                <button class="action-button" data-command="HOLA">
-                    👋 HOLA
-                </button>
+            <!-- RESPUESTA DEL ROBOT -->
 
-                <button class="action-button" data-command="JAJA">
-                    😂 JAJA
-                </button>
+            <div class="conversation-area">
 
-                <button class="action-button" data-command="TEQUIERO">
-                    💙 TE QUIERO
-                </button>
+                <div class="message-label">
+                    <span>AI RESPONSE</span>
+                    <span>● ACTIVE</span>
+                </div>
 
-                <button class="action-button" data-command="GRACIAS">
-                    🙏 GRACIAS
-                </button>
+                <div id="respuestaRobot" class="ai-response">
+                    Hola, soy tu MINI ROBOT. ¿En qué puedo ayudarte?
+                </div>
 
-                <button class="action-button" data-command="UPS">
-                    😯 UPS
-                </button>
+                <div class="message-label user-label">
+                    <span>VOICE INPUT</span>
+                </div>
 
-                <button class="action-button" data-command="PERDON">
-                    🥺 PERDÓN
-                </button>
+                <div id="textoEscuchado" class="user-message">
+                    Aquí aparecerá lo que dices...
+                </div>
 
-                <button class="action-button" data-command="GRRR">
-                    😤 GRRR
-                </button>
+            </div>
 
-                <button class="action-button" data-command="DESCANSAR">
-                    🌙 DESCANSAR
+
+            <!-- CONTROLES DE VOZ -->
+
+            <div class="voice-controls">
+
+                <div class="voice-heading">
+                    <span>VOICE CONTROL</span>
+                    <span id="estadoMicrofono">MICRÓFONO INACTIVO</span>
+                </div>
+
+                <div class="voice-buttons">
+
+                    <button id="iniciarEscucha" class="btn-primary">
+                        <span>🎙</span>
+                        HABLAR
+                    </button>
+
+                    <button id="detenerEscucha" class="btn-secondary">
+                        <span>■</span>
+                        DETENER
+                    </button>
+
+                </div>
+
+                <button id="probarVoz" class="test-voice-button">
+                    ◖ PROBAR VOZ DEL ROBOT
                 </button>
 
             </div>
 
         </section>
+
+
+        <!-- ================================= -->
+        <!-- MENSAJES -->
+        <!-- ================================= -->
 
         <section class="message-panel">
 
             <div class="section-heading">
-                <h2>ENVIAR MENSAJE</h2>
-                <span class="section-number">04</span>
+
+                <div>
+                    <span class="section-kicker">03 / COMMUNICATION</span>
+                    <h2>MENSAJE DIRECTO</h2>
+                </div>
+
+                <span class="section-icon">⌁</span>
+
             </div>
 
             <div class="message-input">
+
                 <input
                     type="text"
                     id="messageInput"
-                    placeholder="Escribe una orden..."
-                    maxlength="40"
+                    placeholder="Escribe un mensaje para tu robot..."
+                    maxlength="500"
                     autocomplete="off"
                 >
 
-                <button id="sendMessageButton">➤</button>
+                <button id="sendMessageButton" aria-label="Enviar mensaje">
+                    ➤
+                </button>
+
             </div>
 
             <p class="hint">
-                Escribe una orden reconocida por el robot.
+                Escribe una pregunta o instrucción para tu asistente inteligente.
             </p>
 
         </section>
 
-        <section class="memory-panel">
 
-            <div class="section-heading">
-                <h2>MEMORIA DEL ROBOT</h2>
-                <span class="section-number">05</span>
-            </div>
-
-            <div class="memory-grid">
-
-                <button class="memory-button" data-command="MEMORIA">
-                    🧠 CONSULTAR MEMORIA
-                </button>
-
-                <button class="memory-button danger" id="clearMemoryButton">
-                    🗑 BORRAR MEMORIA
-                </button>
-
-            </div>
-
-        </section>
+        <!-- ================================= -->
+        <!-- SISTEMA -->
+        <!-- ================================= -->
 
         <section class="system-panel">
 
             <div class="section-heading">
-                <h2>SISTEMA</h2>
-                <span class="section-number">06</span>
+
+                <div>
+                    <span class="section-kicker">04 / DEVICE MANAGEMENT</span>
+                    <h2>CONTROL DEL SISTEMA</h2>
+                </div>
+
+                <span class="section-icon">⚙</span>
+
             </div>
 
             <div class="system-grid">
 
                 <button class="system-button" data-command="INFO">
-                    🕒 INFORMACIÓN
+                    <span>◷</span>
+                    <strong>FECHA Y HORA</strong>
+                    <small>Mostrar reloj OLED</small>
                 </button>
 
                 <button class="system-button" data-command="ROBOT">
-                    🤖 ACTIVAR CARA
+                    <span>◈</span>
+                    <strong>PANTALLA PRINCIPAL</strong>
+                    <small>Regresar a la interfaz del robot</small>
                 </button>
 
                 <button class="system-button" data-command="DORMIR">
-                    🌑 APAGAR PANTALLA
+                    <span>◐</span>
+                    <strong>MODO DESCANSO</strong>
+                    <small>Apagar pantalla OLED</small>
                 </button>
 
                 <button class="system-button" data-command="DESPERTAR">
-                    ☀️ DESPERTAR
+                    <span>◉</span>
+                    <strong>DESPERTAR</strong>
+                    <small>Encender pantalla OLED</small>
                 </button>
 
             </div>
 
         </section>
 
+
+        <!-- ================================= -->
+        <!-- REGISTRO -->
+        <!-- ================================= -->
+
         <section class="log-panel">
+
             <div class="section-heading">
-                <h2>REGISTRO DE ACTIVIDAD</h2>
+
+                <div>
+                    <span class="section-kicker">05 / SYSTEM MONITOR</span>
+                    <h2>REGISTRO DEL SISTEMA</h2>
+                </div>
+
+                <span class="section-icon">▤</span>
+
+            </div>
+
+            <div class="log-header">
+                <span>ACTIVITY LOG</span>
+                <span>LIVE MONITORING</span>
             </div>
 
             <div id="activityLog" class="activity-log">
-                <p>Sistema iniciado. Esperando conexión...</p>
+                <p>SYSTEM INITIALIZED...</p>
+                <p>WAITING FOR DEVICE CONNECTION...</p>
             </div>
+
         </section>
+
+
+        <!-- ELEMENTOS DE COMPATIBILIDAD CON APP.JS -->
+
+        <div hidden>
+            <span id="robotMessage">MINI ROBOT AI</span>
+            <span id="robotSubmessage">Sistema inteligente</span>
+        </div>
 
     </main>
 
+
+    <!-- ================================= -->
+    <!-- FOOTER -->
+    <!-- ================================= -->
+
     <footer>
-        <p>MINI ROBOT CONTROL SYSTEM</p>
-        <span>POWERED BY ESP32-C3</span>
+
+        <div class="footer-brand">
+            MINI ROBOT <span>AI</span>
+        </div>
+
+        <p>ADVANCED PERSONAL INTELLIGENCE SYSTEM</p>
+
+        <span>POWERED BY ESP32-C3 · OPENROUTER</span>
+
     </footer>
 
 </div>
+
 
 <script src="app.js"></script>
 
 </body>
 </html>
+```
