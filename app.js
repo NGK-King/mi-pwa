@@ -5,6 +5,9 @@ const CHARACTERISTIC_UUID = "12345678-1234-1234-1234-1234567890ac";
 let robotDevice = null;
 let robotCharacteristic = null;
 
+// COLA DE COMANDOS BLUETOOTH
+let colaBLE = Promise.resolve();
+
 // =====================================
 // ELEMENTOS HTML
 // =====================================
@@ -253,65 +256,141 @@ function desconexionRobot() {
 // ENVIAR COMANDOS BLUETOOTH
 // =====================================
 
+
 async function enviarComando(comando) {
 
-    if (!robotCharacteristic) {
+    if (!robotCharacteristic || !robotDevice?.gatt.connected) {
 
         registrarActividad("ERROR: robot desconectado.");
 
         return false;
     }
 
-    try {
+    const orden = comando.trim().toUpperCase();
 
-        const orden = comando.trim().toUpperCase();
+    if (!orden) return false;
 
-        if (!orden) return false;
+    const inicio = performance.now();
+
+    // Añadir el envío a la cola para evitar escrituras simultáneas
+    const operacion = colaBLE.then(async () => {
+
+        if (!robotCharacteristic || !robotDevice?.gatt.connected) {
+            throw new Error("Bluetooth desconectado");
+        }
 
         const datos = new TextEncoder().encode(orden);
 
-        await robotCharacteristic.writeValue(datos);
+        console.log("BLE: iniciando envío:", orden);
+
+        const inicioEscritura = performance.now();
+
+        if (typeof robotCharacteristic.writeValueWithResponse === "function") {
+
+            await robotCharacteristic.writeValueWithResponse(datos);
+
+        } else {
+
+            await robotCharacteristic.writeValue(datos);
+        }
+
+        const finEscritura = performance.now();
+
+        console.log(
+            "BLE: escritura completada:",
+            orden,
+            (finEscritura - inicioEscritura).toFixed(2),
+            "ms"
+        );
 
         registrarActividad("ORDEN BLE ENVIADA: " + orden);
 
         actualizarMensaje(orden);
 
         return true;
+    });
+
+    // Mantener la cola operativa incluso si falla un envío
+    colaBLE = operacion.catch(error => {
+        console.error("Error en cola BLE:", error);
+    });
+
+    try {
+
+        const resultado = await operacion;
+
+        console.log(
+            "TIEMPO TOTAL DEL COMANDO:",
+            orden,
+            (performance.now() - inicio).toFixed(2),
+            "ms"
+        );
+
+        return resultado;
 
     } catch (error) {
 
-        console.error(error);
+        console.error("ERROR BLE:", error);
 
-        registrarActividad(
-            "Error BLE: " + error.message
-        );
+        registrarActividad("Error BLE: " + error.message);
 
         return false;
     }
 }
 
 
+
 // =====================================
 // ENVIAR ESTADOS AL ESP32
 // =====================================
 
+
 async function enviarEstadoRobot(estado) {
 
-    if (!robotCharacteristic) return;
+    if (!robotCharacteristic || !robotDevice?.gatt.connected) {
+        return false;
+    }
+
+    const orden = estado.trim().toUpperCase();
+
+    const operacion = colaBLE.then(async () => {
+
+        if (!robotCharacteristic || !robotDevice?.gatt.connected) {
+            throw new Error("Bluetooth desconectado");
+        }
+
+        const datos = new TextEncoder().encode(orden);
+
+        if (typeof robotCharacteristic.writeValueWithResponse === "function") {
+
+            await robotCharacteristic.writeValueWithResponse(datos);
+
+        } else {
+
+            await robotCharacteristic.writeValue(datos);
+        }
+
+        console.log("ESTADO BLE ENVIADO:", orden);
+
+        return true;
+    });
+
+    colaBLE = operacion.catch(error => {
+        console.error("Error enviando estado BLE:", error);
+    });
 
     try {
 
-        const datos = new TextEncoder().encode(estado);
-
-        await robotCharacteristic.writeValue(datos);
-
-        console.log("Estado del robot:", estado);
+        return await operacion;
 
     } catch (error) {
 
         console.error("Error enviando estado:", error);
+
+        return false;
     }
 }
+
 
 
 // =====================================
@@ -542,11 +621,19 @@ if (disconnectButton) {
 // CONTROLES DEL OLED
 // =====================================
 
+
 document.querySelectorAll("[data-command]").forEach(boton => {
 
     boton.addEventListener("click", async () => {
 
         const comando = boton.dataset.command;
+
+        console.log(
+            "BOTON PULSADO:",
+            comando,
+            "TIEMPO:",
+            performance.now()
+        );
 
         if (comando !== "INFO") {
 
@@ -557,9 +644,19 @@ document.querySelectorAll("[data-command]").forEach(boton => {
             mostrandoReloj = false;
         }
 
+        const inicio = performance.now();
+
         await enviarComando(comando);
+
+        console.log(
+            "BOTON COMPLETADO:",
+            comando,
+            (performance.now() - inicio).toFixed(2),
+            "ms"
+        );
     });
 });
+
 
 
 // =====================================
