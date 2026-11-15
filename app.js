@@ -224,6 +224,7 @@ let idVozActual = 0;
 
 let temporizadorRegresoRostro = null;
 let mostrandoReloj = false;
+let intervaloRelojOLED = null;
 
 
 // =====================================
@@ -388,11 +389,13 @@ async function conectarRobot() {
 
 function desconexionRobot() {
 
-    clearTimeout(temporizadorRegresoRostro);
+	clearTimeout(temporizadorRegresoRostro);
+	clearInterval(intervaloRelojOLED);
 
-    temporizadorRegresoRostro = null;
+	temporizadorRegresoRostro = null;
+	intervaloRelojOLED = null;
 
-    mostrandoReloj = false;
+	mostrandoReloj = false;
 
     detenerSolicitado = false;
 
@@ -609,6 +612,89 @@ function actualizarMensaje(comando) {
 
 
 // =====================================
+// GENERAR DATOS DEL RELOJ
+// =====================================
+
+function obtenerPaqueteReloj() {
+
+    const ahora = new Date();
+
+    const dosDigitos = numero =>
+        String(numero).padStart(2, "0");
+
+    const hora =
+        dosDigitos(ahora.getHours()) + ":" +
+        dosDigitos(ahora.getMinutes()) + ":" +
+        dosDigitos(ahora.getSeconds());
+
+    const fecha =
+        dosDigitos(ahora.getDate()) + "/" +
+        dosDigitos(ahora.getMonth() + 1) + "/" +
+        ahora.getFullYear();
+
+    return `CLOCK|${hora}|${fecha}`;
+}
+
+
+// =====================================
+// ENVIAR DATOS DEL RELOJ POR BLE
+// =====================================
+
+async function enviarDatosReloj() {
+
+    if (!robotCharacteristic || !robotDevice?.gatt.connected) {
+        return false;
+    }
+
+    const paquete = obtenerPaqueteReloj();
+
+    const operacion = colaBLE.then(async () => {
+
+        if (!robotCharacteristic || !robotDevice?.gatt.connected) {
+            throw new Error("Bluetooth desconectado");
+        }
+
+        // No convertir a mayúsculas ni modificar el paquete
+        const datos = new TextEncoder().encode(paquete);
+
+        if (
+            typeof robotCharacteristic.writeValueWithResponse === "function"
+        ) {
+
+            await robotCharacteristic.writeValueWithResponse(datos);
+
+        } else {
+
+            await robotCharacteristic.writeValue(datos);
+        }
+
+        console.log("RELOJ BLE ENVIADO:", paquete);
+
+        return true;
+    });
+
+    colaBLE = operacion.catch(error => {
+        console.error("Error en cola BLE:", error);
+    });
+
+    try {
+
+        return await operacion;
+
+    } catch (error) {
+
+        console.error("ERROR ENVIANDO RELOJ:", error);
+
+        registrarActividad(
+            "Error enviando reloj: " + error.message
+        );
+
+        return false;
+    }
+}
+
+
+// =====================================
 // NORMALIZAR TEXTO
 // =====================================
 
@@ -736,7 +822,7 @@ function esSolicitudHora(mensaje) {
 
 async function mostrarHoraRobot() {
 
-    if (!robotCharacteristic) {
+    if (!robotCharacteristic || !robotDevice?.gatt.connected) {
 
         registrarActividad(
             "No se puede mostrar el reloj: robot desconectado."
@@ -745,8 +831,11 @@ async function mostrarHoraRobot() {
         return;
     }
 
+    // Detener cualquier reloj anterior
+    clearInterval(intervaloRelojOLED);
     clearTimeout(temporizadorRegresoRostro);
 
+    intervaloRelojOLED = null;
     temporizadorRegresoRostro = null;
 
     mostrandoReloj = true;
@@ -765,6 +854,7 @@ async function mostrarHoraRobot() {
         "MINI ROBOT: Aquí tienes la hora y la fecha."
     );
 
+    // Solicitar pantalla de reloj al ESP32
     const enviado = await enviarComando("INFO");
 
     if (!enviado) {
@@ -784,19 +874,49 @@ async function mostrarHoraRobot() {
         return;
     }
 
-    registrarActividad("INFO enviado. Esperando 10 segundos.");
+    registrarActividad("INFO enviado correctamente.");
 
+    // Enviar la hora inmediatamente
+    const primerEnvio = await enviarDatosReloj();
+
+    if (!primerEnvio) {
+
+        clearInterval(intervaloRelojOLED);
+        intervaloRelojOLED = null;
+
+        mostrandoReloj = false;
+
+        return;
+    }
+
+    // Actualizar el reloj cada segundo
+    intervaloRelojOLED = setInterval(() => {
+
+        if (!mostrandoReloj) return;
+
+        enviarDatosReloj();
+
+    }, 1000);
+
+    registrarActividad("Reloj OLED actualizado cada segundo.");
+
+    // Después de 10 segundos regresar al rostro
     temporizadorRegresoRostro = setTimeout(async () => {
 
-        if (!robotCharacteristic) {
+        clearInterval(intervaloRelojOLED);
+
+        intervaloRelojOLED = null;
+
+        if (!robotCharacteristic || !robotDevice?.gatt.connected) {
 
             mostrandoReloj = false;
+            temporizadorRegresoRostro = null;
 
             return;
         }
 
         registrarActividad(
-            "Han pasado 10 segundos. Regresando al rostro."
+            "Regresando al rostro animado."
         );
 
         const regresado = await enviarComando("ROBOT");
@@ -858,14 +978,16 @@ document.querySelectorAll("[data-command]").forEach(boton => {
             performance.now()
         );
 
-        if (comando !== "INFO") {
+		if (comando !== "INFO") {
 
-            clearTimeout(temporizadorRegresoRostro);
+			clearTimeout(temporizadorRegresoRostro);
+			clearInterval(intervaloRelojOLED);
 
-            temporizadorRegresoRostro = null;
+			temporizadorRegresoRostro = null;
+			intervaloRelojOLED = null;
 
-            mostrandoReloj = false;
-        }
+			mostrandoReloj = false;
+		}
 
         const inicio = performance.now();
 
@@ -1588,11 +1710,13 @@ async function procesarMensajeUsuario(mensaje) {
         return;
     }
 
-    clearTimeout(temporizadorRegresoRostro);
+	clearTimeout(temporizadorRegresoRostro);
+	clearInterval(intervaloRelojOLED);
 
-    temporizadorRegresoRostro = null;
+	temporizadorRegresoRostro = null;
+	intervaloRelojOLED = null;
 
-    mostrandoReloj = false;
+	mostrandoReloj = false;
 
     enviarEstadoRobot("PENSANDO");
 
