@@ -4,7 +4,6 @@ import { tieneSesion } from "../lib/auth.js";
 
 export default async function handler(req, res) {
 
-    // Evitar almacenar información privada
     res.setHeader("Cache-Control", "no-store");
 
     // =====================================
@@ -27,7 +26,7 @@ export default async function handler(req, res) {
     }
 
     // =====================================
-    // PROTECCIÓN CONTRA PETICIONES EXTERNAS
+    // PROTECCIÓN DE ORIGEN
     // =====================================
 
     if (accesoWeb && !accesoESP32 && req.method !== "GET") {
@@ -90,7 +89,7 @@ export default async function handler(req, res) {
                 typeof fecha_hora !== "string"
             ) {
                 return res.status(400).json({
-                    error: "Faltan la tarea o la fecha, o los datos no son válidos"
+                    error: "Datos del recordatorio no válidos"
                 });
             }
 
@@ -126,19 +125,52 @@ export default async function handler(req, res) {
         }
 
         // =====================================
-        // COMPLETAR O CANCELAR
+        // ACTUALIZAR RECORDATORIO
         // =====================================
 
         if (req.method === "PATCH") {
 
-            const { id, estado } = req.body || {};
+            const { id, estado, accion } = req.body || {};
 
-            if (
-                !id ||
-                !["completado", "cancelado"].includes(estado)
-            ) {
+            const uuidValido =
+                typeof id === "string" &&
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+
+            if (!uuidValido) {
                 return res.status(400).json({
-                    error: "Datos no válidos"
+                    error: "Identificador no válido"
+                });
+            }
+
+            // EL ESP32 CONFIRMA QUE MOSTRÓ EL AVISO
+            if (accion === "notificar") {
+
+                const resultado = await sql`
+                    UPDATE recordatorios
+                    SET fecha_notificacion = NOW()
+                    WHERE id = ${id}
+                      AND estado = 'pendiente'
+                      AND fecha_notificacion IS NULL
+                    RETURNING *
+                `;
+
+                if (resultado.length === 0) {
+                    return res.status(409).json({
+                        error: "El recordatorio ya fue notificado o no está pendiente"
+                    });
+                }
+
+                return res.status(200).json({
+                    ok: true,
+                    mensaje: "Notificación registrada",
+                    recordatorio: resultado[0]
+                });
+            }
+
+            // COMPLETAR O CANCELAR
+            if (!["completado", "cancelado"].includes(estado)) {
+                return res.status(400).json({
+                    error: "Estado no válido"
                 });
             }
 
