@@ -1,9 +1,44 @@
 
+import { tieneSesion } from "../lib/auth.js";
+
 export default async function handler(req, res) {
+
+    // Evitar almacenar respuestas privadas
+    res.setHeader("Cache-Control", "no-store");
+
+    // =====================================
+    // VERIFICAR MÉTODO
+    // =====================================
 
     if (req.method !== "POST") {
         return res.status(405).json({
             error: "Método no permitido"
+        });
+    }
+
+    // =====================================
+    // VERIFICAR SESIÓN
+    // =====================================
+
+    if (!tieneSesion(req)) {
+        return res.status(401).json({
+            error: "Debes iniciar sesión para utilizar MINI ROBOT"
+        });
+    }
+
+    // =====================================
+    // VERIFICAR ORIGEN
+    // =====================================
+
+    const origen = req.headers.origin;
+
+    const host = req.headers["x-forwarded-host"] || req.headers.host;
+
+    const protocolo = req.headers["x-forwarded-proto"] || "https";
+
+    if (origen && origen !== `${protocolo}://${host}`) {
+        return res.status(403).json({
+            error: "Origen no autorizado"
         });
     }
 
@@ -16,6 +51,10 @@ export default async function handler(req, res) {
                 error: "No recibí ningún mensaje"
             });
         }
+
+        // =====================================
+        // CONSULTAR OPENROUTER
+        // =====================================
 
         const respuesta = await fetch(
             "https://openrouter.ai/api/v1/chat/completions",
@@ -68,6 +107,10 @@ Utiliza respuestas concisas y fáciles de entender.`
             throw new Error("OpenRouter no devolvió un flujo de datos.");
         }
 
+        // =====================================
+        // RESPUESTA STREAMING
+        // =====================================
+
         res.status(200);
 
         res.setHeader(
@@ -77,7 +120,7 @@ Utiliza respuestas concisas y fáciles de entender.`
 
         res.setHeader(
             "Cache-Control",
-            "no-cache, no-transform"
+            "no-cache, no-store, no-transform"
         );
 
         res.setHeader(
