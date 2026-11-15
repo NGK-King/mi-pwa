@@ -615,25 +615,29 @@ function actualizarMensaje(comando) {
 // GENERAR DATOS DEL RELOJ
 // =====================================
 
+
 function obtenerPaqueteReloj() {
 
     const ahora = new Date();
 
-    const dosDigitos = numero =>
-        String(numero).padStart(2, "0");
+    const hora = new Intl.DateTimeFormat("es-PE", {
+        timeZone: "America/Lima",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+    }).format(ahora);
 
-    const hora =
-        dosDigitos(ahora.getHours()) + ":" +
-        dosDigitos(ahora.getMinutes()) + ":" +
-        dosDigitos(ahora.getSeconds());
-
-    const fecha =
-        dosDigitos(ahora.getDate()) + "/" +
-        dosDigitos(ahora.getMonth() + 1) + "/" +
-        ahora.getFullYear();
+    const fecha = new Intl.DateTimeFormat("es-PE", {
+        timeZone: "America/Lima",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric"
+    }).format(ahora);
 
     return `CLOCK|${hora}|${fecha}`;
 }
+
 
 
 // =====================================
@@ -820,125 +824,37 @@ function esSolicitudHora(mensaje) {
 // MOSTRAR RELOJ DURANTE 10 SEGUNDOS
 // =====================================
 
-async function mostrarHoraRobot() {
 
-    if (!robotCharacteristic || !robotDevice?.gatt.connected) {
+function mostrarHoraRobot() {
 
-        registrarActividad(
-            "No se puede mostrar el reloj: robot desconectado."
-        );
-
-        return;
+    // Evitar intervalos duplicados
+    if (intervaloRelojOLED !== null) {
+        clearInterval(intervaloRelojOLED);
+        intervaloRelojOLED = null;
     }
-
-    // Detener cualquier reloj anterior
-    clearInterval(intervaloRelojOLED);
-    clearTimeout(temporizadorRegresoRostro);
-
-    intervaloRelojOLED = null;
-    temporizadorRegresoRostro = null;
 
     mostrandoReloj = true;
 
-    registrarActividad("Detectada solicitud de hora o fecha.");
+    // Activar pantalla del reloj
+    enviarComando("INFO");
 
-    cambiarTexto(robotMessage, "MOSTRANDO RELOJ");
+    // Enviar hora inmediatamente
+    enviarDatosReloj();
 
-    cambiarTexto(
-        robotSubmessage,
-        "Hora y fecha durante 10 segundos"
-    );
-
-    cambiarTexto(
-        respuestaElemento,
-        "MINI ROBOT: Aquí tienes la hora y la fecha."
-    );
-
-    // Solicitar pantalla de reloj al ESP32
-    const enviado = await enviarComando("INFO");
-
-    if (!enviado) {
-
-        mostrandoReloj = false;
-
-        cambiarTexto(
-            robotMessage,
-            "ERROR AL MOSTRAR RELOJ"
-        );
-
-        cambiarTexto(
-            robotSubmessage,
-            "No pude enviar INFO al ESP32"
-        );
-
-        return;
-    }
-
-    registrarActividad("INFO enviado correctamente.");
-
-    // Enviar la hora inmediatamente
-    const primerEnvio = await enviarDatosReloj();
-
-    if (!primerEnvio) {
-
-        clearInterval(intervaloRelojOLED);
-        intervaloRelojOLED = null;
-
-        mostrandoReloj = false;
-
-        return;
-    }
-
-    // Actualizar el reloj cada segundo
+    // Actualizar cada segundo indefinidamente
     intervaloRelojOLED = setInterval(() => {
 
-        if (!mostrandoReloj) return;
+        if (!robotCharacteristic) {
+            clearInterval(intervaloRelojOLED);
+            intervaloRelojOLED = null;
+            return;
+        }
 
         enviarDatosReloj();
 
     }, 1000);
-
-    registrarActividad("Reloj OLED actualizado cada segundo.");
-
-    // Después de 10 segundos regresar al rostro
-    temporizadorRegresoRostro = setTimeout(async () => {
-
-        clearInterval(intervaloRelojOLED);
-
-        intervaloRelojOLED = null;
-
-        if (!robotCharacteristic || !robotDevice?.gatt.connected) {
-
-            mostrandoReloj = false;
-            temporizadorRegresoRostro = null;
-
-            return;
-        }
-
-        registrarActividad(
-            "Regresando al rostro animado."
-        );
-
-        const regresado = await enviarComando("ROBOT");
-
-        mostrandoReloj = false;
-
-        if (regresado) {
-
-            cambiarTexto(robotMessage, "ROBOT ACTIVO");
-
-            cambiarTexto(
-                robotSubmessage,
-                "He vuelto a mis ojos animados"
-            );
-
-            registrarActividad("ROBOT enviado correctamente.");
-        }
-
-        temporizadorRegresoRostro = null;
-
-    }, 10000);
 }
+
 
 
 // =====================================
