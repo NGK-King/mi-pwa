@@ -971,3 +971,114 @@ footer span {
     }
 
 }
+
+
+/* =====================================
+   AUTENTICACIÓN MINI ROBOT
+===================================== */
+
+[hidden] {
+    display: none !important;
+}
+
+.login-screen {
+    min-height: 100vh;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: var(--background);
+}
+
+.login-card {
+    width: 100%;
+    max-width: 390px;
+    padding: 35px 28px;
+    text-align: center;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    box-shadow: 0 0 35px rgba(0, 229, 255, 0.10);
+}
+
+.login-logo {
+    font-size: 55px;
+    margin-bottom: 15px;
+}
+
+.login-card h1 {
+    color: var(--cyan);
+    font-size: 25px;
+    margin-bottom: 8px;
+}
+
+.login-card > p {
+    color: var(--muted);
+    margin-bottom: 28px;
+}
+
+.login-card form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    text-align: left;
+}
+
+.login-card label {
+    color: var(--text);
+    font-size: 13px;
+}
+
+.login-card input {
+    width: 100%;
+    padding: 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--panel-light);
+    color: var(--text);
+    outline: none;
+}
+
+.login-card input:focus {
+    border-color: var(--cyan);
+}
+
+.login-card button {
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    background: var(--cyan);
+    color: #080d18;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.login-card button:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.login-error {
+    color: var(--danger);
+    font-size: 13px;
+    text-align: center;
+    min-height: 18px;
+}
+
+.login-footer {
+    margin-top: 25px;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 2px;
+}
+
+.logout-button {
+    padding: 8px 12px;
+    border: 1px solid var(--danger);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--danger);
+    cursor: pointer;
+    font-size: 11px;
+}

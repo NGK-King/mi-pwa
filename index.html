@@ -17,7 +17,55 @@
 
 <body>
 
-<div class="app-container">
+
+<!-- =====================================
+     LOGIN MINI ROBOT
+===================================== -->
+
+<section id="loginScreen" class="login-screen" hidden>
+
+    <div class="login-card">
+
+        <div class="login-logo">
+            🤖
+        </div>
+
+        <h1>MINI ROBOT AI</h1>
+
+        <p>Asistente personal inteligente</p>
+
+        <form id="loginForm">
+
+            <label for="loginPassword">
+                Contraseña de acceso
+            </label>
+
+            <input
+                type="password"
+                id="loginPassword"
+                placeholder="Introduce tu contraseña"
+                autocomplete="current-password"
+                required
+            >
+
+            <button type="submit" id="loginButton">
+                INICIAR SESIÓN
+            </button>
+
+            <p id="loginError" class="login-error"></p>
+
+        </form>
+
+        <div class="login-footer">
+            ACCESO PRIVADO · MINI ROBOT AI
+        </div>
+
+    </div>
+
+</section>
+
+
+<div class="app-container" id="appContainer" hidden>
 
     <!-- HEADER -->
     <header class="topbar">
@@ -35,6 +83,10 @@
             <span id="statusLight" class="status-light"></span>
             <span id="statusText">DESCONECTADO</span>
         </div>
+		
+		<button id="logoutButton" class="logout-button" type="button">
+			CERRAR SESIÓN
+		</button>
 
     </header>
 
