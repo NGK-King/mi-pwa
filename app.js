@@ -214,6 +214,9 @@ let escuchando = false;
 let robotHablando = false;
 
 let textoCapturado = "";
+
+let segmentosFinales = [];
+
 let detenerSolicitado = false;
 let procesandoPregunta = false;
 
@@ -620,6 +623,59 @@ function normalizarTexto(mensaje) {
         .trim();
 }
 
+
+// =====================================
+// UNIR TRANSCRIPCIONES SIN REPETICIONES
+// =====================================
+
+function unirSegmentosSinRepetir(segmentos) {
+
+    const palabrasFinales = [];
+
+    for (const segmento of segmentos) {
+
+        if (!segmento) continue;
+
+        const nuevasPalabras = segmento.trim().split(/\s+/);
+
+        const normalizadasNuevas = nuevasPalabras.map(
+            palabra => normalizarTexto(palabra)
+        );
+
+        let solapamiento = 0;
+
+        const maximo = Math.min(
+            palabrasFinales.length,
+            nuevasPalabras.length,
+            12
+        );
+
+        for (let cantidad = maximo; cantidad >= 1; cantidad--) {
+
+            const anteriores = palabrasFinales
+                .slice(-cantidad)
+                .map(palabra => normalizarTexto(palabra));
+
+            const siguientes = normalizadasNuevas.slice(0, cantidad);
+
+            if (
+                anteriores.every(
+                    (palabra, indice) =>
+                        palabra === siguientes[indice]
+                )
+            ) {
+                solapamiento = cantidad;
+                break;
+            }
+        }
+
+        palabrasFinales.push(
+            ...nuevasPalabras.slice(solapamiento)
+        );
+    }
+
+    return palabrasFinales.join(" ");
+}
 
 // =====================================
 // DETECTAR PETICIÓN DE HORA O FECHA
@@ -1088,6 +1144,7 @@ function iniciarEscuchaManual() {
     }
 
     textoCapturado = "";
+	segmentosFinales = [];
 
     detenerSolicitado = false;
 
@@ -1176,45 +1233,59 @@ if (reconocimiento) {
     };
 
 
-    reconocimiento.onresult = function(event) {
+	reconocimiento.onresult = function(event) {
 
-        let textoTemporal = "";
+		// Guardar cada resultado definitivo por su índice
+		for (let i = 0; i < event.results.length; i++) {
 
-        for (
-            let i = event.resultIndex;
-            i < event.results.length;
-            i++
-        ) {
+			const resultado = event.results[i];
 
-            const resultado = event.results[i];
+			if (resultado.isFinal) {
 
-            const texto = resultado[0].transcript;
+				segmentosFinales[i] =
+					resultado[0].transcript.trim();
+			}
+		}
 
-            if (resultado.isFinal) {
+		// Reconstruir el mensaje evitando fragmentos repetidos
+		textoCapturado = unirSegmentosSinRepetir(
+			segmentosFinales
+		);
 
-                textoCapturado += texto + " ";
+		// Mostrar también el resultado provisional
+		let textoTemporal = "";
 
-            } else {
+		for (let i = 0; i < event.results.length; i++) {
 
-                textoTemporal += texto;
-            }
-        }
+			const resultado = event.results[i];
 
-        const textoVisible =
-            (textoCapturado + textoTemporal).trim();
+			if (!resultado.isFinal) {
 
-        cambiarTexto(
-            textoEscuchado,
-            textoVisible
-                ? "Tú: " + textoVisible
-                : "Te estoy escuchando..."
-        );
+				textoTemporal += resultado[0].transcript + " ";
+			}
+		}
 
-        console.log(
-            "Texto detectado por micrófono:",
-            textoVisible
-        );
-    };
+		const textoVisible = (
+			textoCapturado + " " + textoTemporal
+		).trim();
+
+		cambiarTexto(
+			textoEscuchado,
+			textoVisible
+				? "Tú: " + textoVisible
+				: "Te estoy escuchando..."
+		);
+
+		console.log(
+			"TRANSCRIPCION DEFINITIVA:",
+			textoCapturado
+		);
+
+		console.log(
+			"TRANSCRIPCION VISIBLE:",
+			textoVisible
+		);
+	};
 
 
     reconocimiento.onerror = function(event) {
@@ -1281,6 +1352,7 @@ if (reconocimiento) {
         const mensaje = textoCapturado.trim();
 
         textoCapturado = "";
+		segmentosFinales = [];
 
         if (!mensaje) {
 
