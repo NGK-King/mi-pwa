@@ -836,7 +836,7 @@ function mostrarHoraRobot() {
     mostrandoReloj = true;
 
     // Activar pantalla del reloj
-    enviarComando("INFO");
+    mostrarHoraRobot();
 
     // Enviar hora inmediatamente
     enviarDatosReloj();
