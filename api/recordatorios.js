@@ -1,20 +1,60 @@
 
 import sql from "../lib/db.js";
+import { tieneSesion } from "../lib/auth.js";
 
 export default async function handler(req, res) {
+
+    // Evitar almacenar información privada
+    res.setHeader("Cache-Control", "no-store");
+
+    // =====================================
+    // AUTENTICACIÓN
+    // =====================================
 
     const token = process.env.ROBOT_API_TOKEN;
     const recibido = req.headers.authorization;
 
-    if (!token || recibido !== `Bearer ${token}`) {
+    const accesoESP32 =
+        Boolean(token) &&
+        recibido === `Bearer ${token}`;
+
+    const accesoWeb = tieneSesion(req);
+
+    if (!accesoESP32 && !accesoWeb) {
         return res.status(401).json({
             error: "Acceso no autorizado"
         });
     }
 
+    // =====================================
+    // PROTECCIÓN CONTRA PETICIONES EXTERNAS
+    // =====================================
+
+    if (accesoWeb && !accesoESP32 && req.method !== "GET") {
+
+        const origen = req.headers.origin;
+
+        const host =
+            req.headers["x-forwarded-host"] ||
+            req.headers.host;
+
+        const protocolo =
+            req.headers["x-forwarded-proto"] ||
+            "https";
+
+        if (origen && origen !== `${protocolo}://${host}`) {
+            return res.status(403).json({
+                error: "Origen no autorizado"
+            });
+        }
+    }
+
     try {
 
+        // =====================================
         // CONSULTAR RECORDATORIOS
+        // =====================================
+
         if (req.method === "GET") {
 
             const recordatorios = await sql`
@@ -35,7 +75,10 @@ export default async function handler(req, res) {
             });
         }
 
+        // =====================================
         // CREAR RECORDATORIO
+        // =====================================
+
         if (req.method === "POST") {
 
             const { tarea, fecha_hora } = req.body || {};
@@ -43,10 +86,11 @@ export default async function handler(req, res) {
             if (
                 typeof tarea !== "string" ||
                 !tarea.trim() ||
+                tarea.trim().length > 500 ||
                 typeof fecha_hora !== "string"
             ) {
                 return res.status(400).json({
-                    error: "Faltan la tarea o la fecha"
+                    error: "Faltan la tarea o la fecha, o los datos no son válidos"
                 });
             }
 
@@ -81,7 +125,10 @@ export default async function handler(req, res) {
             });
         }
 
+        // =====================================
         // COMPLETAR O CANCELAR
+        // =====================================
+
         if (req.method === "PATCH") {
 
             const { id, estado } = req.body || {};
