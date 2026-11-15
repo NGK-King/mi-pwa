@@ -33,6 +33,173 @@ const textoEscuchado = document.getElementById("textoEscuchado");
 const respuestaElemento = document.getElementById("respuestaRobot");
 
 
+
+// =====================================
+// AUTENTICACIÓN MINI ROBOT
+// =====================================
+
+const loginScreen = document.getElementById("loginScreen");
+const appContainer = document.getElementById("appContainer");
+const loginForm = document.getElementById("loginForm");
+const loginPassword = document.getElementById("loginPassword");
+const loginButton = document.getElementById("loginButton");
+const loginError = document.getElementById("loginError");
+const logoutButton = document.getElementById("logoutButton");
+
+function mostrarLogin(mensaje = "") {
+    if (loginScreen) loginScreen.hidden = false;
+    if (appContainer) appContainer.hidden = true;
+
+    if (loginError) loginError.textContent = mensaje;
+    if (loginPassword) loginPassword.value = "";
+}
+
+function mostrarAplicacion() {
+    if (loginScreen) loginScreen.hidden = true;
+    if (appContainer) appContainer.hidden = false;
+
+    actualizarConexion(false);
+
+    registrarActividad(
+        "MINI ROBOT COMMAND CENTER iniciado."
+    );
+
+    console.log("MINI ROBOT AI iniciado correctamente.");
+}
+
+// Comprobar la sesión guardada en la cookie HttpOnly
+async function verificarSesion() {
+    try {
+        const respuesta = await fetch("/api/session", {
+            method: "GET",
+            credentials: "same-origin",
+            cache: "no-store"
+        });
+
+        if (!respuesta.ok) return false;
+
+        const datos = await respuesta.json();
+
+        return datos.ok !== false &&
+               datos.authenticated !== false &&
+               datos.autenticado !== false;
+
+    } catch (error) {
+        console.error("Error verificando sesión:", error);
+        return false;
+    }
+}
+
+// Iniciar sesión
+if (loginForm) {
+    loginForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const password = loginPassword.value;
+
+        if (!password.trim()) {
+            loginError.textContent = "Introduce tu contraseña.";
+            return;
+        }
+
+        loginButton.disabled = true;
+        loginButton.textContent = "VERIFICANDO...";
+        loginError.textContent = "";
+
+        try {
+            const respuesta = await fetch("/api/login", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ password })
+            });
+
+            const datos = await respuesta.json();
+
+            if (!respuesta.ok) {
+                throw new Error(
+                    datos.error || "No se pudo iniciar sesión."
+                );
+            }
+
+            const sesionValida = await verificarSesion();
+
+            if (!sesionValida) {
+                throw new Error(
+                    "No se pudo verificar la sesión. Inténtalo nuevamente."
+                );
+            }
+
+            mostrarAplicacion();
+
+        } catch (error) {
+            console.error("Error de inicio de sesión:", error);
+            loginError.textContent = error.message;
+
+        } finally {
+            loginButton.disabled = false;
+            loginButton.textContent = "INICIAR SESIÓN";
+        }
+    });
+}
+
+// Cerrar sesión
+if (logoutButton) {
+    logoutButton.addEventListener("click", async () => {
+
+        logoutButton.disabled = true;
+
+        try {
+            const respuesta = await fetch("/api/logout", {
+                method: "POST",
+                credentials: "same-origin"
+            });
+
+            if (!respuesta.ok) {
+                throw new Error("No se pudo cerrar la sesión.");
+            }
+
+            // Detener funciones que puedan seguir activas
+            if (robotDevice?.gatt.connected) {
+                robotDevice.gatt.disconnect();
+            }
+
+            detenerVozRobot();
+
+            if (reconocimiento && escuchando) {
+                reconocimiento.stop();
+            }
+
+            mostrarLogin("Sesión cerrada correctamente.");
+
+        } catch (error) {
+            console.error("Error al cerrar sesión:", error);
+            alert(error.message);
+
+        } finally {
+            logoutButton.disabled = false;
+        }
+    });
+}
+
+// Comprobar sesión al abrir la aplicación
+async function iniciarAutenticacion() {
+
+    mostrarLogin("Comprobando acceso...");
+
+    const sesionValida = await verificarSesion();
+
+    if (sesionValida) {
+        mostrarAplicacion();
+    } else {
+        mostrarLogin();
+    }
+}
+
+
+
 // =====================================
 // VARIABLES DEL SISTEMA
 // =====================================
@@ -1450,10 +1617,4 @@ async function procesarMensajeUsuario(mensaje) {
 // INICIO DEL SISTEMA
 // =====================================
 
-actualizarConexion(false);
-
-registrarActividad(
-    "MINI ROBOT COMMAND CENTER iniciado."
-);
-
-console.log("MINI ROBOT AI iniciado correctamente.");
+iniciarAutenticacion();
