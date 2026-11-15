@@ -836,7 +836,7 @@ function mostrarHoraRobot() {
     mostrandoReloj = true;
 
     // Activar pantalla del reloj
-    mostrarHoraRobot();
+    enviarComando("INFO");
 
     // Enviar hora inmediatamente
     enviarDatosReloj();
@@ -887,27 +887,30 @@ document.querySelectorAll("[data-command]").forEach(boton => {
 
         const comando = boton.dataset.command;
 
-        console.log(
-            "BOTON PULSADO:",
-            comando,
-            "TIEMPO:",
-            performance.now()
-        );
-
-		if (comando !== "INFO") {
-
-			clearTimeout(temporizadorRegresoRostro);
-			clearInterval(intervaloRelojOLED);
-
-			temporizadorRegresoRostro = null;
-			intervaloRelojOLED = null;
-
-			mostrandoReloj = false;
-		}
+        console.log("BOTON PULSADO:", comando);
 
         const inicio = performance.now();
 
-        await enviarComando(comando);
+        // BOTON HORA Y FECHA
+        if (comando === "INFO") {
+
+            await mostrarHoraRobot();
+
+        }
+
+        // CUALQUIER OTRO BOTON
+        else {
+
+            clearTimeout(temporizadorRegresoRostro);
+            clearInterval(intervaloRelojOLED);
+
+            temporizadorRegresoRostro = null;
+            intervaloRelojOLED = null;
+
+            mostrandoReloj = false;
+
+            await enviarComando(comando);
+        }
 
         console.log(
             "BOTON COMPLETADO:",
@@ -917,6 +920,7 @@ document.querySelectorAll("[data-command]").forEach(boton => {
         );
     });
 });
+
 
 
 
