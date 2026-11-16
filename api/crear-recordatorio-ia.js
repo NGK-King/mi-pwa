@@ -91,7 +91,7 @@ export default async function handler(req, res) {
 
                 body: JSON.stringify({
 
-                    model: process.env.OPENROUTER_MODEL,
+                    model: process.env.OPENROUTER_REMINDER_MODEL || "openrouter/free",
 
                     temperature: 0,
 
