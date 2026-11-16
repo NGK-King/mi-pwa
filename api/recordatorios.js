@@ -7,7 +7,7 @@ export default async function handler(req, res) {
     res.setHeader("Cache-Control", "no-store");
 
     // =====================================
-    // AUTENTICACIÓN
+    // AUTENTICACION
     // =====================================
 
     const token = process.env.ROBOT_API_TOKEN;
@@ -26,7 +26,7 @@ export default async function handler(req, res) {
     }
 
     // =====================================
-    // PROTECCIÓN DE ORIGEN
+    // PROTECCION DE ORIGEN
     // =====================================
 
     if (accesoWeb && !accesoESP32 && req.method !== "GET") {
@@ -59,13 +59,13 @@ export default async function handler(req, res) {
             const recordatorios = await sql`
                 SELECT
                     id,
-                    tarea,
-                    fecha_hora,
+                    mensaje,
+                    fecha_recordatorio,
                     estado,
-                    fecha_notificacion
+                    fecha_creacion
                 FROM recordatorios
                 WHERE estado = 'pendiente'
-                ORDER BY fecha_hora ASC
+                ORDER BY fecha_recordatorio ASC
             `;
 
             return res.status(200).json({
@@ -80,38 +80,39 @@ export default async function handler(req, res) {
 
         if (req.method === "POST") {
 
-            const { tarea, fecha_hora } = req.body || {};
+            const { mensaje, fecha_recordatorio } = req.body || {};
 
             if (
-                typeof tarea !== "string" ||
-                !tarea.trim() ||
-                tarea.trim().length > 500 ||
-                typeof fecha_hora !== "string"
+                typeof mensaje !== "string" ||
+                !mensaje.trim() ||
+                mensaje.trim().length > 500 ||
+                typeof fecha_recordatorio !== "string"
             ) {
                 return res.status(400).json({
                     error: "Datos del recordatorio no válidos"
                 });
             }
 
-            const fecha = new Date(fecha_hora);
+            const fecha = new Date(fecha_recordatorio);
 
-            if (Number.isNaN(fecha.getTime())) {
+            if (
+                Number.isNaN(fecha.getTime()) ||
+                fecha.getTime() <= Date.now()
+            ) {
                 return res.status(400).json({
-                    error: "Fecha u hora no válida"
+                    error: "La fecha debe ser válida y futura"
                 });
             }
 
             const resultado = await sql`
                 INSERT INTO recordatorios (
-                    tarea,
-                    fecha_hora,
-                    zona_horaria,
+                    mensaje,
+                    fecha_recordatorio,
                     estado
                 )
                 VALUES (
-                    ${tarea.trim()},
+                    ${mensaje.trim()},
                     ${fecha.toISOString()},
-                    'America/Lima',
                     'pendiente'
                 )
                 RETURNING *
@@ -130,44 +131,20 @@ export default async function handler(req, res) {
 
         if (req.method === "PATCH") {
 
-            const { id, estado, accion } = req.body || {};
+            const { id, estado } = req.body || {};
 
-            const uuidValido =
-                typeof id === "string" &&
-                /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+            const idValido =
+                (typeof id === "number" && Number.isSafeInteger(id) && id > 0) ||
+                (typeof id === "string" && /^[1-9]\d*$/.test(id));
 
-            if (!uuidValido) {
+            if (!idValido) {
                 return res.status(400).json({
                     error: "Identificador no válido"
                 });
             }
 
-            // EL ESP32 CONFIRMA QUE MOSTRÓ EL AVISO
-            if (accion === "notificar") {
-
-                const resultado = await sql`
-                    UPDATE recordatorios
-                    SET fecha_notificacion = NOW()
-                    WHERE id = ${id}
-                      AND estado = 'pendiente'
-                      AND fecha_notificacion IS NULL
-                    RETURNING *
-                `;
-
-                if (resultado.length === 0) {
-                    return res.status(409).json({
-                        error: "El recordatorio ya fue notificado o no está pendiente"
-                    });
-                }
-
-                return res.status(200).json({
-                    ok: true,
-                    mensaje: "Notificación registrada",
-                    recordatorio: resultado[0]
-                });
-            }
-
             // COMPLETAR O CANCELAR
+
             if (!["completado", "cancelado"].includes(estado)) {
                 return res.status(400).json({
                     error: "Estado no válido"
@@ -177,13 +154,14 @@ export default async function handler(req, res) {
             const resultado = await sql`
                 UPDATE recordatorios
                 SET estado = ${estado}
-                WHERE id = ${id}
+                WHERE id = ${String(id)}
+                  AND estado = 'pendiente'
                 RETURNING *
             `;
 
             if (resultado.length === 0) {
                 return res.status(404).json({
-                    error: "Recordatorio no encontrado"
+                    error: "Recordatorio no encontrado o ya actualizado"
                 });
             }
 
