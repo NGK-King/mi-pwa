@@ -1611,6 +1611,28 @@ async function consultarMiniRobot(mensaje, alRecibirTexto) {
 // =====================================
 
 
+function esSolicitudRecordatorio(texto) {
+
+    const t = texto
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+
+    const palabras = [
+        "recuerdame",
+        "acuerdame",
+        "ponme un recordatorio",
+        "programa un recordatorio",
+        "crea un recordatorio",
+        "avisame"
+    ];
+
+    return palabras.some(p => t.includes(p));
+}
+
+
+
+
 async function procesarMensajeUsuario(mensaje) {
 
     const texto = mensaje.trim();
@@ -1618,6 +1640,10 @@ async function procesarMensajeUsuario(mensaje) {
     if (!texto) return;
 
     console.log("PROCESANDO MENSAJE:", texto);
+
+    // =====================================
+    // COMANDO ESPECIAL: HORA
+    // =====================================
 
     if (esSolicitudHora(texto)) {
 
@@ -1630,13 +1656,21 @@ async function procesarMensajeUsuario(mensaje) {
         return;
     }
 
-	clearTimeout(temporizadorRegresoRostro);
-	clearInterval(intervaloRelojOLED);
+    // =====================================
+    // LIMPIAR RELOJ OLED
+    // =====================================
 
-	temporizadorRegresoRostro = null;
-	intervaloRelojOLED = null;
+    clearTimeout(temporizadorRegresoRostro);
+    clearInterval(intervaloRelojOLED);
 
-	mostrandoReloj = false;
+    temporizadorRegresoRostro = null;
+    intervaloRelojOLED = null;
+
+    mostrandoReloj = false;
+
+    // =====================================
+    // ESTADO DEL ROBOT
+    // =====================================
 
     enviarEstadoRobot("PENSANDO");
 
@@ -1649,8 +1683,129 @@ async function procesarMensajeUsuario(mensaje) {
 
     cambiarTexto(
         robotSubmessage,
-        "Estoy consultando mi inteligencia artificial"
+        "Estoy preparando mi respuesta..."
     );
+
+    // =====================================
+    // DETECTAR SOLICITUD DE RECORDATORIO
+    // =====================================
+
+    if (esSolicitudRecordatorio(texto)) {
+
+        registrarActividad(
+            "SOLICITUD DE RECORDATORIO: " + texto
+        );
+
+        try {
+
+            cambiarTexto(
+                robotSubmessage,
+                "Estoy organizando tu recordatorio..."
+            );
+
+            const respuestaAPI = await fetch(
+                "/api/crear-recordatorio-ia",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        mensaje: texto
+                    })
+                }
+            );
+
+            const datos = await respuestaAPI.json();
+
+            if (!respuestaAPI.ok || !datos.ok) {
+
+                throw new Error(
+                    datos.error || "No se pudo crear el recordatorio."
+                );
+            }
+
+            // Si la IA determina que no es un recordatorio,
+            // continuamos con el chat normal.
+
+            if (datos.accion !== "no_es_recordatorio") {
+
+                const respuestaRobot = datos.respuesta ||
+                    "He procesado tu solicitud.";
+
+                cambiarTexto(
+                    respuestaElemento,
+                    "MINI ROBOT: " + respuestaRobot
+                );
+
+                cambiarTexto(
+                    robotMessage,
+                    datos.accion === "creado"
+                        ? "RECORDATORIO GUARDADO"
+                        : "NECESITO UNA ACLARACIÓN"
+                );
+
+                cambiarTexto(
+                    robotSubmessage,
+                    datos.accion === "creado"
+                        ? "Tu recordatorio está guardado correctamente."
+                        : "Necesito que me confirmes un detalle."
+                );
+
+                registrarActividad(
+                    datos.accion === "creado"
+                        ? "RECORDATORIO GUARDADO CORRECTAMENTE."
+                        : "SOLICITUD DE ACLARACIÓN DE RECORDATORIO."
+                );
+
+                hablarRobot(respuestaRobot);
+
+                enviarEstadoRobot("LISTO");
+
+                return;
+            }
+
+        } catch (error) {
+
+            console.error(
+                "ERROR RECORDATORIO:",
+                error
+            );
+
+            cambiarTexto(
+                respuestaElemento,
+                "MINI ROBOT: No pude guardar tu recordatorio. " +
+                error.message
+            );
+
+            cambiarTexto(
+                robotMessage,
+                "ERROR DE RECORDATORIO"
+            );
+
+            cambiarTexto(
+                robotSubmessage,
+                "No pude guardar tu tarea."
+            );
+
+            registrarActividad(
+                "ERROR RECORDATORIO: " + error.message
+            );
+
+            hablarRobot(
+                "Brother, tuve un problema al guardar tu recordatorio. " +
+                "Por favor, inténtalo nuevamente."
+            );
+
+            enviarEstadoRobot("LISTO");
+
+            return;
+        }
+    }
+
+    // =====================================
+    // CHAT NORMAL CON OPENROUTER
+    // =====================================
 
     registrarActividad(
         "Pregunta enviada a OpenRouter: " + texto
@@ -1684,7 +1839,10 @@ async function procesarMensajeUsuario(mensaje) {
             "MINI ROBOT: " + respuesta
         );
 
-        cambiarTexto(robotMessage, "NUEVA RESPUESTA");
+        cambiarTexto(
+            robotMessage,
+            "NUEVA RESPUESTA"
+        );
 
         cambiarTexto(
             robotSubmessage,
@@ -1726,6 +1884,7 @@ async function procesarMensajeUsuario(mensaje) {
         );
     }
 }
+
 
 
 
