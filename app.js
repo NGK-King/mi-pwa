@@ -1072,6 +1072,12 @@ function hablarRobot(mensaje) {
         if (idActual !== idVozActual) return;
 
         robotHablando = false;
+		
+		const botonHablar = document.getElementById("iniciarEscucha");
+
+		if (botonHablar) {
+			botonHablar.textContent = "🎙️ HABLAR";
+		}
 
         enviarEstadoRobot("IDLE");
 
@@ -1113,6 +1119,12 @@ function detenerVozRobot() {
     idVozActual++;
 
     robotHablando = false;
+	
+	const botonHablar = document.getElementById("iniciarEscucha");
+
+	if (botonHablar) {
+		botonHablar.textContent = "🎙️ HABLAR";
+	}
 
     if ("speechSynthesis" in window) {
         window.speechSynthesis.cancel();
@@ -1181,9 +1193,20 @@ function iniciarEscuchaManual() {
         return;
     }
 
-    if (escuchando || robotHablando || procesandoPregunta) {
-        return;
-    }
+	// No iniciar otra grabación si ya estamos escuchando
+	if (escuchando || procesandoPregunta) {
+		return;
+	}
+
+	// Si Babas está hablando, interrumpirlo
+	if (robotHablando) {
+
+		registrarActividad(
+			"VOZ INTERRUMPIDA POR EL USUARIO."
+		);
+
+		detenerVozRobot();
+	}
 
     textoCapturado = "";
 	segmentosFinales = [];
