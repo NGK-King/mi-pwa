@@ -68,15 +68,20 @@ export default async function handler(req, res) {
 
                 await enviarTelegram(mensajeTelegram);
 
-                // Marcar como notificado solamente
-                // después de enviar correctamente.
 
-                await sql`
-                    UPDATE recordatorios
-                    SET fecha_notificacion = NOW()
-                    WHERE id = ${recordatorio.id}
-                      AND fecha_notificacion IS NULL
-                `;
+				// Marcar como notificado solamente
+				// después de enviar correctamente a Telegram.
+
+				await sql`
+					UPDATE recordatorios
+					SET
+						estado = 'notificado',
+						fecha_notificacion = NOW()
+					WHERE id = ${recordatorio.id}
+					  AND estado = 'pendiente'
+					  AND fecha_notificacion IS NULL
+				`;
+
 
                 enviados++;
 
