@@ -1656,6 +1656,30 @@ function esSolicitudRecordatorio(texto) {
 
 
 
+function esConsultaRecordatorios(texto) {
+
+    const t = texto.toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+
+    const palabras = [
+        "que recordatorios tengo",
+        "que recordatorios hay",
+        "mis recordatorios de hoy",
+        "recordatorios pendientes",
+        "que tengo pendiente",
+        "que tareas tengo hoy",
+        "dime mis tareas de hoy",
+        "mis tareas pendientes",
+        "agenda de hoy"
+    ];
+
+    return palabras.some(p => t.includes(p));
+}
+
+
+
+
 async function procesarMensajeUsuario(mensaje) {
 
     const texto = mensaje.trim();
@@ -1708,6 +1732,135 @@ async function procesarMensajeUsuario(mensaje) {
         robotSubmessage,
         "Estoy preparando mi respuesta..."
     );
+
+
+
+
+    // =====================================
+    // CONSULTAR RECORDATORIOS DEL DIA
+    // =====================================
+
+    if (esConsultaRecordatorios(texto)) {
+
+        registrarActividad(
+            "CONSULTANDO AGENDA DIARIA: " + texto
+        );
+
+        try {
+
+            cambiarTexto(
+                robotSubmessage,
+                "Estoy revisando tus recordatorios..."
+            );
+
+            const respuestaAPI = await fetch(
+                "/api/consultar-recordatorios",
+                {
+                    method: "GET",
+                    cache: "no-store"
+                }
+            );
+
+            const datos = await respuestaAPI.json();
+
+            if (!respuestaAPI.ok || !datos.ok) {
+
+                throw new Error(
+                    datos.error || "No pude consultar tus recordatorios."
+                );
+            }
+
+            let respuestaRobot = "";
+
+            if (datos.cantidad === 0) {
+
+                respuestaRobot =
+                    "Brother, hoy no tienes recordatorios pendientes.";
+
+            } else {
+
+                respuestaRobot =
+                    `Brother, tienes ${datos.cantidad} ` +
+                    `recordatorios pendientes para hoy. `;
+
+                datos.recordatorios.forEach((recordatorio, index) => {
+
+                    respuestaRobot +=
+                        `Recordatorio ${index + 1}. ` +
+                        `A las ${recordatorio.hora}, ` +
+                        `${recordatorio.mensaje}. `;
+
+                });
+
+            }
+
+            cambiarTexto(
+                respuestaElemento,
+                "MINI ROBOT: " + respuestaRobot
+            );
+
+            cambiarTexto(
+                robotMessage,
+                "AGENDA DE HOY"
+            );
+
+            cambiarTexto(
+                robotSubmessage,
+                datos.cantidad > 0
+                    ? `Tienes ${datos.cantidad} tareas pendientes.`
+                    : "No tienes tareas pendientes para hoy."
+            );
+
+            registrarActividad(
+                "AGENDA CONSULTADA: " + datos.cantidad +
+                " recordatorios encontrados."
+            );
+
+            hablarRobot(respuestaRobot);
+
+            enviarEstadoRobot("LISTO");
+
+            return;
+
+        } catch (error) {
+
+            console.error(
+                "ERROR CONSULTANDO AGENDA:",
+                error
+            );
+
+            cambiarTexto(
+                respuestaElemento,
+                "MINI ROBOT: No pude consultar tus recordatorios."
+            );
+
+            cambiarTexto(
+                robotMessage,
+                "ERROR DE AGENDA"
+            );
+
+            cambiarTexto(
+                robotSubmessage,
+                "No pude recuperar tus tareas."
+            );
+
+            registrarActividad(
+                "ERROR CONSULTANDO AGENDA: " + error.message
+            );
+
+            hablarRobot(
+                "Brother, tuve un problema al consultar tus recordatorios. " +
+                "Inténtalo nuevamente."
+            );
+
+            enviarEstadoRobot("LISTO");
+
+            return;
+        }
+    }
+
+
+
 
     // =====================================
     // DETECTAR SOLICITUD DE RECORDATORIO
