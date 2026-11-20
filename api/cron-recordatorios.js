@@ -72,15 +72,30 @@ export default async function handler(req, res) {
 				// Marcar como notificado solamente
 				// después de enviar correctamente a Telegram.
 
-				await sql`
+
+
+				const actualizado = await sql`
 					UPDATE recordatorios
 					SET
-						estado = 'notificado',
+						estado = 'enviado',
 						fecha_notificacion = NOW()
 					WHERE id = ${recordatorio.id}
 					  AND estado = 'pendiente'
 					  AND fecha_notificacion IS NULL
+					RETURNING id, estado, fecha_notificacion
 				`;
+
+				if (actualizado.length === 0) {
+					throw new Error(
+						`Telegram envió el mensaje, pero no se actualizó el recordatorio ${recordatorio.id}`
+					);
+				}
+
+				console.log(
+					"Recordatorio actualizado correctamente:",
+					actualizado[0]
+				);
+
 
 
                 enviados++;
