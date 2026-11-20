@@ -6,19 +6,11 @@ export default async function handler(req, res) {
 
     res.setHeader("Cache-Control", "no-store");
 
-    // =====================================
-    // VALIDAR METODO
-    // =====================================
-
     if (req.method !== "GET") {
         return res.status(405).json({
             error: "Método no permitido"
         });
     }
-
-    // =====================================
-    // AUTENTICACION
-    // =====================================
 
     if (!tieneSesion(req)) {
         return res.status(401).json({
@@ -26,9 +18,7 @@ export default async function handler(req, res) {
         });
     }
 
-    // =====================================
     // PROTECCION DE ORIGEN
-    // =====================================
 
     const origen = req.headers.origin;
     const host = req.headers["x-forwarded-host"] || req.headers.host;
@@ -43,8 +33,51 @@ export default async function handler(req, res) {
     try {
 
         // =====================================
-        // CONSULTAR RECORDATORIOS DE HOY
-        // HORA DE PERU
+        // DETERMINAR DIA DE CONSULTA
+        // =====================================
+
+        const dia = req.query?.dia || "hoy";
+
+        if (dia !== "hoy" && dia !== "manana") {
+            return res.status(400).json({
+                error: "Día no válido. Utiliza hoy o manana."
+            });
+        }
+
+        const desplazamiento = dia === "manana" ? 1 : 0;
+
+        // =====================================
+        // CALCULAR LIMITES EN HORA DE PERU
+        // =====================================
+
+        const limites = await sql`
+            SELECT
+
+                (
+                    (
+                        date_trunc(
+                            'day',
+                            NOW() AT TIME ZONE 'America/Lima'
+                        )
+                        + ${desplazamiento} * INTERVAL '1 day'
+                    )
+                    AT TIME ZONE 'America/Lima'
+                ) AS inicio,
+
+                (
+                    (
+                        date_trunc(
+                            'day',
+                            NOW() AT TIME ZONE 'America/Lima'
+                        )
+                        + (${desplazamiento} + 1) * INTERVAL '1 day'
+                    )
+                    AT TIME ZONE 'America/Lima'
+                ) AS fin
+        `;
+
+        // =====================================
+        // CONSULTAR RECORDATORIOS
         // =====================================
 
         const recordatorios = await sql`
@@ -59,18 +92,9 @@ export default async function handler(req, res) {
 
             WHERE estado = 'pendiente'
 
-              AND fecha_recordatorio >=
-                  (date_trunc(
-                      'day',
-                      NOW() AT TIME ZONE 'America/Lima'
-                  ) AT TIME ZONE 'America/Lima')
+              AND fecha_recordatorio >= ${limites[0].inicio}
 
-              AND fecha_recordatorio <
-                  ((date_trunc(
-                      'day',
-                      NOW() AT TIME ZONE 'America/Lima'
-                  ) + INTERVAL '1 day')
-                  AT TIME ZONE 'America/Lima')
+              AND fecha_recordatorio < ${limites[0].fin}
 
             ORDER BY fecha_recordatorio ASC
 
@@ -103,17 +127,18 @@ export default async function handler(req, res) {
         // RESPUESTA
         // =====================================
 
+        const nombreDia = dia === "hoy" ? "hoy" : "mañana";
+
         return res.status(200).json({
 
             ok: true,
-
+            dia: dia,
             cantidad: lista.length,
-
             recordatorios: lista,
 
             respuesta: lista.length === 0
-                ? "No tienes recordatorios pendientes para hoy."
-                : `Tienes ${lista.length} recordatorios pendientes para hoy.`
+                ? `No tienes recordatorios pendientes para ${nombreDia}.`
+                : `Tienes ${lista.length} recordatorios pendientes para ${nombreDia}.`
 
         });
 
