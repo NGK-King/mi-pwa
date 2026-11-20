@@ -117,8 +117,9 @@ export default async function handler(req, res) {
 
             return {
                 id: recordatorio.id,
-                mensaje: recordatorio.mensaje,
-                hora: fecha
+				mensaje: recordatorio.mensaje,
+				hora: fecha,
+				estado: recordatorio.estado
             };
 
         });
