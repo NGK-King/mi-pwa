@@ -1680,6 +1680,98 @@ function esConsultaRecordatorios(texto) {
 
 
 
+
+// =====================================
+// DETECTAR SOLICITUD DE CANCELACION
+// =====================================
+
+function esSolicitudCancelarRecordatorio(texto) {
+
+    const t = texto.toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+
+    const palabras = [
+        "cancela",
+        "cancelar",
+        "cancela el recordatorio",
+        "elimina el recordatorio",
+        "eliminar el recordatorio",
+        "borra el recordatorio",
+        "anula el recordatorio"
+    ];
+
+    return palabras.some(p => t.includes(p));
+}
+
+
+
+
+// =====================================
+// EXTRAER DIA Y HORA
+// =====================================
+
+function extraerDatosCancelacion(texto) {
+
+    const t = texto.toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+
+    let dia = null;
+
+    if (t.includes("manana")) {
+        dia = "manana";
+    } else if (t.includes("hoy")) {
+        dia = "hoy";
+    }
+
+    const coincidencia = t.match(
+        /\b(?:a las\s*)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/
+    );
+
+    if (!dia || !coincidencia) {
+        return null;
+    }
+
+    let hora = parseInt(coincidencia[1], 10);
+    const minutos = parseInt(coincidencia[2] || "0", 10);
+
+    const periodo = coincidencia[3];
+
+    if (hora > 23 || minutos > 59) {
+        return null;
+    }
+
+    if (periodo === "pm" && hora < 12) {
+        hora += 12;
+    }
+
+    if (periodo === "am" && hora === 12) {
+        hora = 0;
+    }
+
+    if (!periodo) {
+
+        if (
+            t.includes("de la noche") ||
+            t.includes("de la tarde")
+        ) {
+            if (hora < 12) hora += 12;
+        }
+    }
+
+    return {
+        dia,
+        hora: String(hora).padStart(2, "0") +
+            ":" +
+            String(minutos).padStart(2, "0")
+    };
+}
+
+
+
+
+
 async function procesarMensajeUsuario(mensaje) {
 
     const texto = mensaje.trim();
@@ -1732,6 +1824,204 @@ async function procesarMensajeUsuario(mensaje) {
         robotSubmessage,
         "Estoy preparando mi respuesta..."
     );
+
+
+
+
+
+
+	// =====================================
+	// CANCELAR RECORDATORIO
+	// =====================================
+
+	if (esSolicitudCancelarRecordatorio(texto)) {
+
+		registrarActividad(
+			"SOLICITUD DE CANCELACION: " + texto
+		);
+
+		try {
+
+			cambiarTexto(
+				robotSubmessage,
+				"Estoy buscando el recordatorio que quieres cancelar..."
+			);
+
+			const criterios = extraerDatosCancelacion(texto);
+
+			if (!criterios) {
+
+				const respuestaRobot =
+					"Brother, dime qué día y a qué hora está el recordatorio. " +
+					"Por ejemplo: cancela el recordatorio de mañana a las 8 AM.";
+
+				cambiarTexto(
+					respuestaElemento,
+					"MINI ROBOT: " + respuestaRobot
+				);
+
+				hablarRobot(respuestaRobot);
+				enviarEstadoRobot("LISTO");
+
+				return;
+			}
+
+			// Consultar recordatorios del día indicado
+
+			const respuestaConsulta = await fetch(
+				`/api/consultar-recordatorios?dia=${criterios.dia}`,
+				{
+					method: "GET",
+					cache: "no-store"
+				}
+			);
+
+			const datosConsulta = await respuestaConsulta.json();
+
+			if (!respuestaConsulta.ok || !datosConsulta.ok) {
+				throw new Error(
+					datosConsulta.error || "No pude consultar los recordatorios."
+				);
+			}
+
+			// Buscar coincidencias por hora y estado
+
+			const coincidencias = datosConsulta.recordatorios.filter(r =>
+				r.estado === "pendiente" &&
+				r.hora === criterios.hora
+			);
+
+			let respuestaRobot = "";
+
+			// No se encontró ningún recordatorio
+
+			if (coincidencias.length === 0) {
+
+				respuestaRobot =
+					`No encontré ningún recordatorio pendiente para ` +
+					`${criterios.dia === "hoy" ? "hoy" : "mañana"} ` +
+					`a las ${criterios.hora}.`;
+
+				cambiarTexto(
+					robotMessage,
+					"RECORDATORIO NO ENCONTRADO"
+				);
+
+			}
+
+			// Hay más de un recordatorio a esa hora
+
+			else if (coincidencias.length > 1) {
+
+				respuestaRobot =
+					"Encontré varios recordatorios pendientes a esa hora. " +
+					coincidencias.map((r, i) =>
+						`El número ${i + 1}: ${r.mensaje}.`
+					).join(" ") +
+					" Dime cuál tarea quieres cancelar, indicando su descripción.";
+
+				cambiarTexto(
+					robotMessage,
+					"NECESITO UNA ACLARACIÓN"
+				);
+
+			}
+
+			// Hay exactamente un recordatorio
+
+			else {
+
+				const recordatorio = coincidencias[0];
+
+				const respuestaCancelacion = await fetch(
+					"/api/cancelar-recordatorio",
+					{
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json"
+						},
+						body: JSON.stringify({
+							id: recordatorio.id
+						})
+					}
+				);
+
+				const datosCancelacion =
+					await respuestaCancelacion.json();
+
+				if (!respuestaCancelacion.ok || !datosCancelacion.ok) {
+					throw new Error(
+						datosCancelacion.error ||
+						"No pude cancelar el recordatorio."
+					);
+				}
+
+				respuestaRobot =
+					`Listo brother. He cancelado el recordatorio: ` +
+					`${recordatorio.mensaje}, programado para las ` +
+					`${recordatorio.hora}.`;
+
+				cambiarTexto(
+					robotMessage,
+					"RECORDATORIO CANCELADO"
+				);
+
+				registrarActividad(
+					"RECORDATORIO CANCELADO. ID: " + recordatorio.id
+				);
+			}
+
+			cambiarTexto(
+				respuestaElemento,
+				"MINI ROBOT: " + respuestaRobot
+			);
+
+			cambiarTexto(
+				robotSubmessage,
+				"Gestión de recordatorios"
+			);
+
+			hablarRobot(respuestaRobot);
+
+			enviarEstadoRobot("LISTO");
+
+			return;
+
+		} catch (error) {
+
+			console.error(
+				"ERROR CANCELANDO RECORDATORIO:",
+				error
+			);
+
+			const respuestaRobot =
+				"Brother, tuve un problema al cancelar el recordatorio. " +
+				"Inténtalo nuevamente.";
+
+			cambiarTexto(
+				respuestaElemento,
+				"MINI ROBOT: " + respuestaRobot
+			);
+
+			cambiarTexto(
+				robotMessage,
+				"ERROR DE CANCELACION"
+			);
+
+			cambiarTexto(
+				robotSubmessage,
+				error.message
+			);
+
+			hablarRobot(respuestaRobot);
+
+			enviarEstadoRobot("LISTO");
+
+			return;
+		}
+	}
+
+
 
 
 
