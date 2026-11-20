@@ -90,7 +90,7 @@ export default async function handler(req, res) {
 
             FROM recordatorios
 
-            WHERE estado = 'pendiente'
+            WHERE estado IN ('pendiente', 'enviado')
 
               AND fecha_recordatorio >= ${limites[0].inicio}
 
